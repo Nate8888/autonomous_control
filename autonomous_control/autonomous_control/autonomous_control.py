@@ -6,6 +6,13 @@ from std_msgs.msg import Int8
 from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 from gazebo_msgs.msg import LinkStates
+# LinkStates:
+
+# broadcast all link states in world frame
+# string[] name                 # link names
+# geometry_msgs/Pose[] pose     # desired pose in world frame
+# geometry_msgs/Twist[] twist   # desired twist in world frame
+
 from sensor_msgs.msg import JointState, Imu, LaserScan
 import sys
 
@@ -83,7 +90,7 @@ class RoverController(Node):
         # @TODO FIX on_scan method
         #self.combined = self.create_subscription(LaserScan, "obstacle_detection/combined", on_scan_update, 10)
 
-        if True or swarm_control:
+        if swarm_control: # if True to test swarm
             self.ros_util.auto_function_command = 16
 
             self.server_name = "waypoint"

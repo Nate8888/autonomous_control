@@ -21,7 +21,8 @@ setup(
     entry_points={
         'console_scripts': [
             'obstacle_detection = autonomous_control.obstacle_detection:main',
-            'autonomous_control = autonomous_control.autonomous_control:on_start_up'
+            'autonomous_control = autonomous_control.autonomous_control:on_start_up',
+            'interactor = autonomous_control.simulation_interact:main'
         ],
     },
 )

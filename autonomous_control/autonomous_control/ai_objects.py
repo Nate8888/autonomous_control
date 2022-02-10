@@ -4,7 +4,7 @@ import rclpy
 from .nav_functions import *
 import math
 from random import uniform
-from std_msgs.msg import Float32, Bool
+from std_msgs.msg import Float64, Bool
 from geometry_msgs.msg import Point, Twist
 
 
@@ -66,13 +66,16 @@ class WorldState:
         # @TODO: figure out how to get the namespace in ros2
         # apparently we can use the node to get the namespace like
         # node.get_namespace()
-
+        
         namespace = self.node.get_namespace()
+        self.node.get_logger().info('Trying to get the namespace inside simState: {}'.format(namespace))
+
         namespace = namespace[1:-1] + "::base_link"
+        default_ns = "ezrassor::base_link"
         try:
-            index = data.name.index(namespace)
+            index = data.name.index(default_ns)
         except Exception:
-            self.node.get_logger().info('Created node')
+            self.node.get_logger().info('Hit exception')
             return
 
         self.positionX = data.pose[index].position.x
@@ -130,10 +133,10 @@ class ROSUtility:
         """ Initialize the ROS Utility Object. """
         self.node = node
         self.movement_pub = self.node.create_publisher(Twist, movement_topic, 10)
-        self.front_arm_pub = self.node.create_publisher(Float32, front_arm_topic, 10)
-        self.back_arm_pub = self.node.create_publisher(Float32, back_arm_topic, 10)
-        self.front_drum_pub = self.node.create_publisher(Float32, front_drum_topic, 10)
-        self.back_drum_pub = self.node.create_publisher(Float32, back_drum_topic, 10)
+        self.front_arm_pub = self.node.create_publisher(Float64, front_arm_topic, 10)
+        self.back_arm_pub = self.node.create_publisher(Float64, back_arm_topic, 10)
+        self.front_drum_pub = self.node.create_publisher(Float64, front_drum_topic, 10)
+        self.back_drum_pub = self.node.create_publisher(Float64, back_drum_topic, 10)
         # @TODO check if it's secondary_override_toggle or /secondary_override_toggle
         self.control_pub = self.node.create_publisher(Bool, "secondary_override_toggle", 10)
         self.arms_up_pub = self.node.create_publisher(Bool, "arms_up", 10)
@@ -171,13 +174,13 @@ class ROSUtility:
         else:
             pass
 
-        front_arm_float = Float32()
+        front_arm_float = Float64()
         front_arm_float.data = float(front_arm)
-        back_arm_float = Float32()
+        back_arm_float = Float64()
         back_arm_float.data = float(back_arm)
-        front_drum_float = Float32()
+        front_drum_float = Float64()
         front_drum_float.data = float(front_drum)
-        back_drum_float = Float32()
+        back_drum_float = Float64()
         back_drum_float.data = float(back_drum)
 
         self.movement_pub.publish(twist_message)
