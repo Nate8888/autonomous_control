@@ -36,8 +36,14 @@ class WorldState:
     def jointCallBack(self, data):
         """ Set state_flags joint position data. """
         
-        self.front_arm_angle = data.position[1]
-        self.back_arm_angle = data.position[0]
+        # Find the index of 'arm_front_joint'
+        index_farm = data.name.index("arm_front_joint")
+        index_barm = data.name.index("arm_back_joint")
+        self.front_arm_angle = data.position[index_farm]
+        self.back_arm_angle = data.position[index_barm]
+
+        # self.node.get_logger().info("front arm angle: {}".format(self.front_arm_angle))
+        # self.node.get_logger().info("back arm angle: {}".format(self.back_arm_angle))
 
     def odometryCallBack(self, data):
         """ Set state_flags world position data. """
@@ -68,7 +74,7 @@ class WorldState:
         # node.get_namespace()
         
         namespace = self.node.get_namespace()
-        self.node.get_logger().info('Trying to get the namespace inside simState: {}'.format(namespace))
+        #self.node.get_logger().info('Trying to get the namespace inside simState: {}'.format(namespace))
 
         namespace = namespace[1:-1] + "::base_link"
         default_ns = "ezrassor::base_link"
@@ -144,7 +150,7 @@ class ROSUtility:
         # Setting up a hz rate?
         # https://answers.ros.org/question/358343/rate-and-sleep-function-in-rclpy-library-for-ros2/
         #self.rate = rclpy.Rate(45)  # 10hz
-        self.rate = 10 # @TODO check if this is ok
+
         self.max_linear_velocity = max_linear_velocity
         self.max_angular_velocity = max_angular_velocity
 
@@ -191,4 +197,9 @@ class ROSUtility:
 
     def autoCommandCallBack(self, data):
         """ Set auto_function_command to the current choice. """
+        # get_logger message with new data
+        self.node.get_logger().info('Received auto command: {}'.format(data.data))
         self.auto_function_command = data.data
+
+        self.node.get_logger().info("Autonomous control initialized.")
+        #self.node.autonomous_control_loop(self.node.world_state, self.node.ros_util)

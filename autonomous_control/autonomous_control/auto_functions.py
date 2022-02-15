@@ -32,9 +32,7 @@ def auto_drive_location(world_state, ros_util, node, waypoint_server=None):
     # Action server will print it's own info
     if waypoint_server is None:
         node.get_logger().info(
-            "Auto-driving to [%s, %s]...",
-            str(world_state.target_location.x),
-            str(world_state.target_location.y),
+            "Auto-driving to {},{}...".format(world_state.target_location.x, world_state.target_location.y)
         )
 
     # Send feedback to waypoint client if being controlled by swarm controller
@@ -43,10 +41,12 @@ def auto_drive_location(world_state, ros_util, node, waypoint_server=None):
 
     node.get_logger().info("Setting front arms for travel!")
     # Set arms up for travel
-    set_front_arm_angle(world_state, ros_util, 1.3)
+    set_front_arm_angle(world_state, ros_util, 0.5)
     node.get_logger().info("Setting back arms for travel!")
-    set_back_arm_angle(world_state, ros_util, 1.3)
+    set_back_arm_angle(world_state, ros_util, 0.5)
 
+
+    node.get_logger().info("Checking rover battery, hardware, and if it's flipped over")
     # Check rover battery, hardware, and if it's flipped over
     if self_check(world_state, ros_util) != 1:
         preempted = True
@@ -60,6 +60,7 @@ def auto_drive_location(world_state, ros_util, node, waypoint_server=None):
 
     # Before we head towards our goal, turn to face it.
     # Get new heading angle relative to current heading
+    node.get_logger().info("Calculating new heading angle...")
     new_heading_degrees = calculate_heading(world_state)
     angle2goal_radians = adjust_angle(
         world_state.heading, new_heading_degrees
@@ -72,7 +73,9 @@ def auto_drive_location(world_state, ros_util, node, waypoint_server=None):
     else:
         direction = "left"
 
+    node.get_logger().info("Our direction is: {}".format(direction))
     turn(new_heading_degrees, direction, world_state, ros_util)
+    world_state.node.get_logger().info("FINISHED TURNIGN TO FACE GOAL")
     ros_util.publish_actions("stop", 0, 0, 0, 0)
 
     # Main loop until location is reached
@@ -169,7 +172,7 @@ def auto_dig(world_state, ros_util, duration, node, waypoint_server=None):
 
         ros_util.publish_actions(direction, 0, 0, 1, 1)
         t += 1
-        ros_util.rate.sleep()
+        ros_util.node.rate.sleep()
 
         world_state.battery -= 0.05
 
@@ -229,17 +232,17 @@ def auto_dump(world_state, ros_util, duration, node):
             return
         ros_util.publish_actions("stop", 0, 0, -1, -1)
         t += 1
-        ros_util.rate.sleep()
+        ros_util.node.rate.sleep()
 
     new_heading = world_state.heading = (world_state.heading + 180) % 360
 
     while not ((new_heading - 1) < world_state.heading < (new_heading + 1)):
         ros_util.publish_actions("left", 0, 0, 0, 0)
-        ros_util.rate.sleep()
+        ros_util.node.rate.sleep()
 
     while t < duration * 30:
         ros_util.publish_actions("stop", 0, 0, -1, -1)
         t += 1
-        ros_util.rate.sleep()
+        ros_util.node.rate.sleep()
 
     ros_util.publish_actions("stop", 0, 0, 0, 0)

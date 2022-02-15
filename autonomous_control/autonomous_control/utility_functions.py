@@ -2,7 +2,8 @@
 
 import rclpy
 import math
-
+import time
+from std_msgs.msg import Bool
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Pose
 
@@ -14,27 +15,68 @@ from action_interfaces.action import Waypoint
 
 scan = None
 
-
 def on_scan_update(new_scan):
     global scan
     scan = new_scan
 
-
 def set_front_arm_angle(world_state, ros_util, target_angle):
-    """ Set front arm to absolute angle target_angle in radians. """
     if target_angle > world_state.front_arm_angle:
         while target_angle > world_state.front_arm_angle:
             ros_util.publish_actions("stop", 1, 0, 0, 0)
-            #ros_util.rate.sleep()
-        ros_util.arms_up_pub.publish(True)
+            ros_util.node.rate.sleep()
+        d = Bool()
+        d.data = True
+        ros_util.arms_up_pub.publish(d)
     else:
         while target_angle < world_state.front_arm_angle:
             ros_util.publish_actions("stop", -1, 0, 0, 0)
-            #ros_util.rate.sleep()
-        ros_util.arms_up_pub.publish(False)
-
+            ros_util.node.rate.sleep()
+        d = Bool()
+        d.data = False
+        ros_util.arms_up_pub.publish(d)
+    
     ros_util.publish_actions("stop", 0, 0, 0, 0)
 
+
+# def set_front_arm_angle(world_state, ros_util, target_angle):
+#     """ Set front arm to absolute angle target_angle in radians. """
+#     # display target angle and current angle:
+#     if target_angle > world_state.front_arm_angle:
+#         world_state.node.get_logger().info("Current front arm angle: {}".format(world_state.front_arm_angle))
+#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
+#         ros_util.publish_actions("stop", 1, 0, 0, 0)
+#         time.sleep(0.5)
+#         ros_util.publish_actions("stop", 0, 0, 0, 0)
+#         world_state.node.get_logger().info("Current front arm angle: {}".format(world_state.front_arm_angle))
+#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
+#     else:
+#         world_state.node.get_logger().info("Current front arm angle: {}".format(world_state.front_arm_angle))
+#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
+#         ros_util.publish_actions("stop", -1, 0, 0, 0)
+#         time.sleep(0.5)
+#         ros_util.publish_actions("stop", 0, 0, 0, 0)
+#         world_state.node.get_logger().info("Current front arm angle: {}".format(world_state.front_arm_angle))
+#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
+    
+
+# def set_back_arm_angle(world_state, ros_util, target_angle):
+
+#     if target_angle > world_state.back_arm_angle:
+#         world_state.node.get_logger().info("Current back arm angle: {}".format(world_state.back_arm_angle))
+#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
+#         ros_util.publish_actions("stop", 0, 1, 0, 0)
+#         time.sleep(0.5)
+#         ros_util.publish_actions("stop", 0, 0, 0, 0)
+#         world_state.node.get_logger().info("Current back arm angle: {}".format(world_state.back_arm_angle))
+#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
+#     else:
+#         world_state.node.get_logger().info("Current back arm angle: {}".format(world_state.back_arm_angle))
+#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
+#         ros_util.publish_actions("stop", 0, -1, 0, 0)
+#         time.sleep(0.5)
+#         ros_util.publish_actions("stop", 0, 0, 0, 0)
+#         world_state.node.get_logger().info("Current back arm angle: {}".format(world_state.back_arm_angle))
+#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
 
 def set_back_arm_angle(world_state, ros_util, target_angle):
     """ Set back arm to absolute angle target_angle in radians. """
@@ -45,11 +87,11 @@ def set_back_arm_angle(world_state, ros_util, target_angle):
     if target_angle > world_state.back_arm_angle:
         while target_angle > world_state.back_arm_angle:
             ros_util.publish_actions("stop", 0, 1, 0, 0)
-            #ros_util.rate.sleep()
+            ros_util.node.rate.sleep()
     else:
         while target_angle < world_state.back_arm_angle:
             ros_util.publish_actions("stop", 0, -1, 0, 0)
-            #ros_util.rate.sleep()
+            ros_util.node.rate.sleep()
 
     ros_util.publish_actions("stop", 0, 0, 0, 0)
 
@@ -62,13 +104,13 @@ def self_check(world_state, ros_util):
         ros_util.auto_function_command == 32
         or ros_util.auto_function_command == 0
     ):
-        rospy.loginfo("Cancelling auto-function command...")
+        world_state.node.loginfo("Cancelling auto-function command...")
         ros_util.publish_actions("stop", 0, 0, 0, 0)
         ros_util.control_pub.publish(False)
         return -1
 
     if world_state.battery < 10:
-        rospy.loginfo("Low battery! Rover must charge ASAP or it will halt!")
+        world_state.node.loginfo("Low battery! Rover must charge ASAP or it will halt!")
         world_state.target_location = [0, 0]
         return 3
 
@@ -102,8 +144,9 @@ def turn(new_heading, direction, world_state, ros_util):
 
     # Turn the number of degrees towards your new heading.
     while angle_traveled < angle_dist - 2:
+        world_state.node.get_logger().info("Angle traveled: {}, angle_dist-2 = {}".format(angle_traveled, angle_dist-2))
         if self_check(world_state, ros_util) != 1:
-            rospy.logdebug("Status check failed.")
+            world_state.node.get_logger().info("Status check failed.")
             return
 
         old_heading = world_state.heading
@@ -123,14 +166,14 @@ def turn(new_heading, direction, world_state, ros_util):
 
         twist_message = Twist()
         twist_message.angular.z = turn_velocity
+        
         ros_util.movement_pub.publish(twist_message)
 
-        ros_util.rate.sleep()
+        ros_util.node.rate.sleep()
 
         angle_traveled += abs(
             (world_state.heading - old_heading + 180) % 360 - 180
         )
-
 
 """ Moves the robot a given distance or until an obstacle is encountered
 
@@ -157,7 +200,7 @@ def move(dist, world_state, ros_util, direction="forward"):
     # obstacle in the way.
     while dist_traveled < move_dist:
         if self_check(world_state, ros_util) != 1:
-            rospy.logdebug("Status check failed.")
+            world_state.node.get_logger().info("Status check failed.")
             return
 
         # Exit if we come too close to an obstacle
@@ -168,7 +211,7 @@ def move(dist, world_state, ros_util, direction="forward"):
             scan,
             ros_util.obstacle_threshold,
         ):
-            rospy.loginfo("Obstacle too close! Stopping!")
+            world_state.node.get_logger().info("Obstacle too close! Stopping!")
             ros_util.publish_actions("stop", 0, 0, 0, 0)
             break
 
@@ -189,7 +232,7 @@ def move(dist, world_state, ros_util, direction="forward"):
         twist_message.linear.x = move_velocity
         ros_util.movement_pub.publish(twist_message)
 
-        ros_util.rate.sleep()
+        ros_util.node.rate.sleep()
 
         dist_traveled = math.sqrt(
             (world_state.positionX - old_x) ** 2
@@ -202,7 +245,7 @@ def reverse_turn(world_state, ros_util):
 
     while world_state.warning_flag == 3:
         ros_util.publish_actions("reverse", 0, 0, 0, 0)
-        ros_util.rate.sleep()
+        ros_util.node.rate.sleep()
 
     new_heading = (world_state.heading + 60) % 360
 
@@ -220,7 +263,7 @@ def dodge_left(world_state, ros_util):
         if world_state.warning_flag == 0:
             threshold += 1
         ros_util.publish_actions("left", 0, 0, 0, 0)
-        ros_util.rate.sleep()
+        ros_util.node.rate.sleep()
 
     while (
         euclidean_distance(
@@ -229,7 +272,7 @@ def dodge_left(world_state, ros_util):
         < 2
     ):
         ros_util.publish_actions("forward", 0, 0, 0, 0)
-        ros_util.rate.sleep()
+        ros_util.node.rate.sleep()
 
 
 def dodge_right(world_state, ros_util):
@@ -242,7 +285,7 @@ def dodge_right(world_state, ros_util):
         if world_state.warning_flag == 0:
             threshold += 1
         ros_util.publish_actions("right", 0, 0, 0, 0)
-        ros_util.rate.sleep()
+        ros_util.node.rate.sleep()
 
     while (
         euclidean_distance(
@@ -251,13 +294,13 @@ def dodge_right(world_state, ros_util):
         < 2
     ):
         ros_util.publish_actions("forward", 0, 0, 0, 0)
-        ros_util.rate.sleep()
+        ros_util.node.rate.sleep()
 
 
 def self_right_from_side(world_state, ros_util):
     """ Flip EZ-RASSOR over from its side. """
 
-    rospy.loginfo("Starting auto self-right...")
+    world_state.node.get_logger().info("Starting auto self-right...")
     while world_state.on_side is not False:
         ros_util.publish_actions("stop", 0, 1, 0, 0)
         ros_util.publish_actions("stop", 1, 0, 0, 0)
@@ -290,7 +333,7 @@ def get_turn_angle(world_state, ros_util):
             switchDirection = -1
             wedgeDist = 0
             wedgeSize = (scan.angle_max - scan.angle_min) / 2.0
-            rospy.loginfo(
+            world_state.node.get_logger().info(
                 "There is nowhere to go in the current wedge. "
                 + "Turning to an adjacent wedge."
             )
@@ -298,7 +341,7 @@ def get_turn_angle(world_state, ros_util):
             # Keep checking adjacent wedges until we find a safe angle.
             while best_angle is None:
                 if self_check(world_state, ros_util) != 1:
-                    rospy.logdebug("Status check failed.")
+                    world_state.node.get_logger().info("Status check failed.")
                     return
 
                 set_front_arm_angle(world_state, ros_util, 1.3)
@@ -321,10 +364,10 @@ def get_turn_angle(world_state, ros_util):
                     ros_util,
                 )
                 ros_util.publish_actions("stop", 0, 0, 0, 0)
-                ros_util.rate.sleep()
-                rospy.sleep(0.1)
+                ros_util.node.rate.sleep() 
+                #rospy.sleep(0.1)
 
-                rospy.loginfo("Currently at wedge W{}".format(wedgeDist - 1))
+                world_state.node.get_logger().info("Currently at wedge W{}".format(wedgeDist - 1))
                 best_angle = get_best_angle(
                     world_state,
                     ros_util.obstacle_buffer,
@@ -362,8 +405,8 @@ def get_turn_angle(world_state, ros_util):
                 ros_util,
             )
             ros_util.publish_actions("stop", 0, 0, 0, 0)
-            ros_util.rate.sleep()
-            rospy.sleep(0.1)
+            ros_util.node.rate.sleep()
+            #rospy.sleep(0.1)
             best_angle = get_best_angle(
                 world_state,
                 ros_util.obstacle_buffer,

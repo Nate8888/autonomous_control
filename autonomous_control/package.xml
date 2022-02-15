@@ -21,14 +21,14 @@
   <exec_depend>image_geometry</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
-
+  <exec_depend>gazebo_msgs</exec_depend>
+  
   <!-- Action Interface package by Nate -->
   <exec_depend>action_interfaces</exec_depend>
+  
 
   <!-- msg & srv Interface package by Nate -->
   <exec_depend>msgsrc_interfaces</exec_depend>
-
-
 
   <export>
     <build_type>ament_python</build_type>

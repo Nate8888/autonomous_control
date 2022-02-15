@@ -6,6 +6,7 @@ from std_msgs.msg import Int8
 from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 from gazebo_msgs.msg import LinkStates
+import threading
 # LinkStates:
 
 # broadcast all link states in world frame
@@ -23,16 +24,15 @@ from action_interfaces.action import Waypoint
 from msgsrc_interfaces.srv import GetRoverStatus
 from msgsrc_interfaces.msg import Path
 
-# old stuff from ROS1 keeping this here just in case something is wrong with the code above
-# from ezrassor_swarm_control.msg import waypointAction, waypointResult
-# from ezrassor_swarm_control.srv import GetRoverStatus, GetRoverStatusResponse
-
 from .ai_objects import *
 from .auto_functions import *
 from .utility_functions import *
 
 
 class RoverController(Node):
+
+    ROBOT_NAME = "ezrassor" # Default name used
+
     def __init__(
         self,
         target_x,
@@ -54,7 +54,7 @@ class RoverController(Node):
     ):
         super().__init__("autonomous_control")
         #self.get_logger().info('Created node')
-
+        self.rate = self.create_rate(10, self.get_clock())
 
         self.namespace = self.get_namespace()
         self.get_logger().info('Created node w/ namespace: {}'.format(self.namespace))
@@ -75,20 +75,23 @@ class RoverController(Node):
             self
         )
 
+
         # Setup Subscriber Callbacks
         if real_odometry:
             # Get initial spawn coords
             self.world_state.initial_spawn(start_x, start_y)
             self.odom = self.create_subscription(Odometry, "odometry/filtered", self.world_state.odometryCallBack, 10)
         else:
-            self.gazebolink = self.create_subscription(LinkStates, "/gazebo/link_states", self.world_state.simStateCallBack, 10)
+            self.gazebolink = self.create_subscription(LinkStates, "gazebo/link_states", self.world_state.simStateCallBack, 10)
 
-        self.imu = self.create_subscription(Imu, "imu", self.world_state.imuCallBack, 10)
-        self.joint_state = self.create_subscription(JointState, "joint_states", self.world_state.jointCallBack, 10)
+        # imu = good
+        self.imu = self.create_subscription(Imu, "{}/imu_plugin/out".format(self.ROBOT_NAME), self.world_state.imuCallBack, 10)
+        # joint_state = good
+        self.joint_state = self.create_subscription(JointState, "{}/joint_states".format(self.ROBOT_NAME), self.world_state.jointCallBack, 10)
         self.autonomous = self.create_subscription(Int8, "autonomous_toggles", self.ros_util.autoCommandCallBack, 10)
         
         # @TODO FIX on_scan method
-        #self.combined = self.create_subscription(LaserScan, "obstacle_detection/combined", on_scan_update, 10)
+        self.combined = self.create_subscription(LaserScan, "obstacle_detection/combined", on_scan_update, 10)
 
         if swarm_control: # if True to test swarm
             self.ros_util.auto_function_command = 16
@@ -123,6 +126,7 @@ class RoverController(Node):
 
             self.world_state.target_location = target_location
             self.world_state.dig_site = temp
+            
 
     def send_status(self, request, response):
         """Send the rover's battery and pose to the swarm controller."""
@@ -247,9 +251,12 @@ class RoverController(Node):
                 or ros_util.auto_function_command == 32
             ):
                 ros_util.publish_actions("stop", 0, 0, 0, 0)
-                ros_util.rate.sleep()
+                self.get_logger().info("publishing stop")
+                self.rate.sleep()
 
-            ros_util.control_pub.publish(True)
+            d = Bool()
+            d.data = True
+            ros_util.control_pub.publish(d)
 
             if ros_util.auto_function_command == 1:
                 auto_drive_location(world_state, ros_util, self)
@@ -269,7 +276,9 @@ class RoverController(Node):
 
             ros_util.auto_function_command = 0
             ros_util.publish_actions("stop", 0, 0, 0, 0)
-            ros_util.control_pub.publish(False)
+            d = Bool()
+            d.data = False
+            ros_util.control_pub.publish(d)
 
 
 #   <arg name="digsite_x_coord" default="10"/>
@@ -297,16 +306,16 @@ def on_start_up(
     target_y=10,
     start_x=0,
     start_y=0,
-    movement_topic="wheel_instructions_topic",
-    front_arm_topic="front_arm_instructions_topic",
-    back_arm_topic="back_arm_instructions_topic",
-    front_drum_topic="front_drum_instructions_topic",
-    back_drum_topic="back_drum_instructions_topic",
+    movement_topic="ezrassor/wheel_instructions",
+    front_arm_topic="ezrassor/front_arm_instructions",
+    back_arm_topic="ezrassor/back_arm_instructions",
+    front_drum_topic="ezrassor/front_drum_instructions",
+    back_drum_topic="ezrassor/back_drum_instructions",
     obstacle_threshold=4.0,
     obstacle_buffer=1.5,
     move_increment=3,
-    max_linear_velocity=1,
-    max_angular_velocity=1,
+    max_linear_velocity=10,
+    max_angular_velocity=10,
     real_odometry=False,
     swarm_control=False,
     args=None
@@ -333,16 +342,13 @@ def on_start_up(
         swarm_control
     )
 
-    rclpy.spin(rover_controller)
+    thread = threading.Thread(target=rclpy.spin, args=(rover_controller, ), daemon=True)
+    thread.start()
 
-    # Start autonomous control loop if rover isn't being controlled by a swarm
-    # controller
+    rover_controller.rate = rover_controller.create_rate(45)
+
+    #rclpy.spin(rover_controller)
     if not swarm_control:
-        rover_controller.autonomous_control_loop(
-            rover_controller.world_state, rover_controller.ros_util
-        )
-
-        rover_controller.get_logger().info("Autonomous control initialized.")
-    
-    rover_controller.destroy_node()
+        rover_controller.autonomous_control_loop(rover_controller.world_state, rover_controller.ros_util)
     rclpy.shutdown()
+    thread.join()
