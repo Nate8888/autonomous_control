@@ -91,7 +91,7 @@ class RoverController(Node):
         self.autonomous = self.create_subscription(Int8, "autonomous_toggles", self.ros_util.autoCommandCallBack, 10)
         
         # @TODO FIX on_scan method
-        self.combined = self.create_subscription(LaserScan, "obstacle_detection/combined", on_scan_update, 10)
+        self.combined = self.create_subscription(LaserScan, "obstacle_detection/combined", on_scan_update, 1)
 
         if swarm_control: # if True to test swarm
             self.ros_util.auto_function_command = 16
@@ -302,8 +302,8 @@ class RoverController(Node):
 #   <arg name="front_drum_instructions_topic"/>
 #   <arg name="back_drum_instructions_topic"/>
 def on_start_up(
-    target_x=10,
-    target_y=10,
+    target_x=6,
+    target_y=6,
     start_x=0,
     start_y=0,
     movement_topic="ezrassor/wheel_instructions",
@@ -313,9 +313,9 @@ def on_start_up(
     back_drum_topic="ezrassor/back_drum_instructions",
     obstacle_threshold=4.0,
     obstacle_buffer=1.5,
-    move_increment=3,
-    max_linear_velocity=10,
-    max_angular_velocity=10,
+    move_increment=3.0,
+    max_linear_velocity=10.0,
+    max_angular_velocity=10.0,
     real_odometry=False,
     swarm_control=False,
     args=None

@@ -34,7 +34,15 @@ class ObstacleDetector(Node):
         self.get_logger().info('Created node')
         self.point_cloud = None
 
-        camera_info_topic = "/custom_ns/custom_camera/depth/camera_info" #"camera/depth/camera_info"
+        # Publisher nodes w/ depth camera data
+        # /ezrassor/depth_camera/camera_info
+        # /ezrassor/depth_camera/depth/camera_info
+        # /ezrassor/depth_camera/depth/image_raw
+        # /ezrassor/depth_camera/image_raw
+        # /ezrassor/depth_camera/points
+
+
+        camera_info_topic = "ezrassor/depth_camera/camera_info" #"camera/depth/camera_info"
         # Create the subscribers
         self.camera_info_sub = self.create_subscription(CameraInfo, camera_info_topic, self.init_pc_info, 10)
         self.get_logger().info('Created camera_info_sub')
@@ -42,7 +50,7 @@ class ObstacleDetector(Node):
         self.get_logger().info('Awaiting {}'.format(camera_info_topic))
 
 
-        point_cloud_topic= "/custom_ns/custom_camera/custom_points" #"camera/depth/points"
+        point_cloud_topic= "ezrassor/depth_camera/points" #"camera/depth/points"
         self.pt_sub = self.create_subscription(PointCloud2, point_cloud_topic, self.on_pc_update, 10)
         self.get_logger().info('Created PointCloud2 subs')
         self.pt_sub
@@ -103,7 +111,6 @@ class ObstacleDetector(Node):
 
 
 
-    
     def on_pc_update(self, pc):
         self.point_cloud = pc
         self.get_logger().info('I received pc data')
@@ -119,6 +126,7 @@ class ObstacleDetector(Node):
         above-ground (positive) obstacles and hike is used to detect holes
         (negative obstacles).
         """
+        #self.get_logger().info('Range size: {}'.format(self.ranges_size))
         # Initial LaserScans assume infinite travel in every direction
         hike_ranges = [float("nan")] * self.ranges_size
         slope_ranges = [float("nan")] * self.ranges_size
@@ -153,6 +161,7 @@ class ObstacleDetector(Node):
 
                 # Step is first column of any row
                 step = int(direction[0, 0])
+                #self.get_logger().info("My step is {}".format(step))
 
                 # Slice the down and dist arrays to do vectorized operations
                 # at idx and idx-1
@@ -182,9 +191,8 @@ class ObstacleDetector(Node):
                     slope_ranges[step] = direction[index_slope, 1]
 
                 # Combine above laserscans
-                min_ranges[step] = np.nanmin(
-                    (hike_ranges[step], slope_ranges[step])
-                )
+                if step < self.ranges_size:
+                    min_ranges[step] = np.nanmin((hike_ranges[step], slope_ranges[step]))
 
             self.hike_pub.publish(self.create_laser_scan(hike_ranges))
             self.slope_pub.publish(self.create_laser_scan(slope_ranges))

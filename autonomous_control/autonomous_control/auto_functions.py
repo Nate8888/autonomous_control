@@ -41,9 +41,9 @@ def auto_drive_location(world_state, ros_util, node, waypoint_server=None):
 
     node.get_logger().info("Setting front arms for travel!")
     # Set arms up for travel
-    set_front_arm_angle(world_state, ros_util, 0.5)
+    set_front_arm_angle(world_state, ros_util, 1.0)
     node.get_logger().info("Setting back arms for travel!")
-    set_back_arm_angle(world_state, ros_util, 0.5)
+    set_back_arm_angle(world_state, ros_util, 1.0)
 
 
     node.get_logger().info("Checking rover battery, hardware, and if it's flipped over")
@@ -96,8 +96,8 @@ def auto_drive_location(world_state, ros_util, node, waypoint_server=None):
             break
 
         # Set arms up for travel
-        set_front_arm_angle(world_state, ros_util, 1.3)
-        set_back_arm_angle(world_state, ros_util, 1.3)
+        set_front_arm_angle(world_state, ros_util, 1.0)
+        set_back_arm_angle(world_state, ros_util, 1.0)
 
         # Check rover battery, hardware, and if it's flipped over
         if self_check(world_state, ros_util) != 1:
@@ -223,8 +223,8 @@ def auto_dump(world_state, ros_util, duration, node):
     """
     node.get_logger().info("Auto-dumping drum contents...")
 
-    set_front_arm_angle(world_state, ros_util, 1.3)
-    set_back_arm_angle(world_state, ros_util, 1.3)
+    set_front_arm_angle(world_state, ros_util, 1.0)
+    set_back_arm_angle(world_state, ros_util, 1.0)
 
     t = 0
     while t < duration * 40:
