@@ -41,9 +41,11 @@ def auto_drive_location(world_state, ros_util, node, waypoint_server=None):
 
     node.get_logger().info("Setting front arms for travel!")
     # Set arms up for travel
-    set_front_arm_angle(world_state, ros_util, 1.0)
+
+    set_front_arm_angle(world_state, ros_util, 1.3)
+
     node.get_logger().info("Setting back arms for travel!")
-    set_back_arm_angle(world_state, ros_util, 1.0)
+    set_back_arm_angle(world_state, ros_util, 1.3)
 
 
     node.get_logger().info("Checking rover battery, hardware, and if it's flipped over")
@@ -75,8 +77,10 @@ def auto_drive_location(world_state, ros_util, node, waypoint_server=None):
 
     node.get_logger().info("Our direction is: {}".format(direction))
     turn(new_heading_degrees, direction, world_state, ros_util)
-    world_state.node.get_logger().info("FINISHED TURNIGN TO FACE GOAL")
+    world_state.node.get_logger().info("Finished Turning To face goal.")
+    world_state.node.get_logger().info("Going to sleep for 2secs before zooming there...")
     ros_util.publish_actions("stop", 0, 0, 0, 0)
+    time.sleep(2)
 
     # Main loop until location is reached
     while not at_target(
@@ -87,6 +91,9 @@ def auto_drive_location(world_state, ros_util, node, waypoint_server=None):
         ros_util.threshold,
     ):
 
+        # Report current coordinate
+        node.get_logger().info("My coords: ({},{})\nTarget coords: ({},{})".format(world_state.positionX, world_state.positionY, world_state.target_location.x, world_state.target_location.y))
+        
         # Check that the waypoint client request hasnt been canceled
         if (
             waypoint_server is not None
@@ -96,8 +103,8 @@ def auto_drive_location(world_state, ros_util, node, waypoint_server=None):
             break
 
         # Set arms up for travel
-        set_front_arm_angle(world_state, ros_util, 1.0)
-        set_back_arm_angle(world_state, ros_util, 1.0)
+        set_front_arm_angle(world_state, ros_util, 1.3)
+        set_back_arm_angle(world_state, ros_util, 1.3)
 
         # Check rover battery, hardware, and if it's flipped over
         if self_check(world_state, ros_util) != 1:
@@ -157,10 +164,10 @@ def auto_dig(world_state, ros_util, duration, node, waypoint_server=None):
         return feedback, preempted
 
     if waypoint_server is None:
-        node.get_logger().info("Auto-digging for %d seconds...", duration)
+        node.get_logger().info("Auto-digging for {} seconds...".format(duration))
 
-    set_front_arm_angle(world_state, ros_util, -0.1)
-    set_back_arm_angle(world_state, ros_util, -0.1)
+    set_front_arm_angle(world_state, ros_util, -0.04)
+    set_back_arm_angle(world_state, ros_util, -0.04)
 
     # Dig for the desired duration
     t = 0
@@ -223,8 +230,8 @@ def auto_dump(world_state, ros_util, duration, node):
     """
     node.get_logger().info("Auto-dumping drum contents...")
 
-    set_front_arm_angle(world_state, ros_util, 1.0)
-    set_back_arm_angle(world_state, ros_util, 1.0)
+    set_front_arm_angle(world_state, ros_util, 1.3)
+    set_back_arm_angle(world_state, ros_util, 1.3)
 
     t = 0
     while t < duration * 40:

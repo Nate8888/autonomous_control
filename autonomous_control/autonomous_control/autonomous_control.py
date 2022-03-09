@@ -54,10 +54,16 @@ class RoverController(Node):
     ):
         super().__init__("autonomous_control")
         #self.get_logger().info('Created node')
-        self.rate = self.create_rate(10, self.get_clock())
 
+        self.rate = self.create_rate(10, self.get_clock())
         self.namespace = self.get_namespace()
         self.get_logger().info('Created node w/ namespace: {}'.format(self.namespace))
+        self.swarm_control = swarm_control
+
+        # Used to trigger timer function execution
+        self.front_arm_flag = False
+        self.back_arm_flag = False
+        self.target_angle = 0
 
         # Create Utility Objects
         self.world_state = WorldState(self)
@@ -93,7 +99,12 @@ class RoverController(Node):
         # @TODO FIX on_scan method
         self.combined = self.create_subscription(LaserScan, "obstacle_detection/combined", on_scan_update, 1)
 
-        if swarm_control: # if True to test swarm
+        # Fix infinite arm issue
+        self.front_arm_timer = self.create_timer(0.1, self.front_arm_timer_cb)
+        self.back_arm_timer = self.create_timer(0.1, self.back_arm_timer_cb)
+
+        
+        if self.swarm_control: # if True to test swarm
             self.ros_util.auto_function_command = 16
 
             self.server_name = "waypoint"
@@ -126,8 +137,43 @@ class RoverController(Node):
 
             self.world_state.target_location = target_location
             self.world_state.dig_site = temp
-            
 
+    def front_arm_timer_cb(self):
+        """
+        Callback for the front arm timer.
+        """
+        if self.front_arm_flag:
+            if self.target_angle > self.world_state.front_arm_angle:
+                self.ros_util.publish_actions("stop", 1, 0, 0, 0)
+                self.get_logger().info("Current front arm angle: {}".format(self.world_state.front_arm_angle))
+                self.get_logger().info("target angle: {}".format(self.target_angle))
+                d = Bool()
+                d.data = True
+                self.ros_util.arms_up_pub.publish(d)
+            else:
+                self.front_arm_flag = False
+                self.ros_util.publish_actions("stop", -1, 0, 0, 0)
+                # self.get_logger().info("Current front arm angle: {}".format(self.world_state.front_arm_angle))
+                # self.get_logger().info("target angle: {}".format(self.target_angle))
+                d = Bool()
+                d.data = False
+                self.ros_util.arms_up_pub.publish(d)
+                self.ros_util.publish_actions("stop", 0, 0, 0, 0)
+
+    def back_arm_timer_cb(self):
+        """
+        Callback for the Back arm timer.
+        """
+        if self.back_arm_flag:
+            if self.target_angle > self.world_state.back_arm_angle:
+                self.ros_util.publish_actions("stop", 0, 1, 0, 0)
+                self.get_logger().info("Current back arm angle: {}".format(self.world_state.back_arm_angle))
+                self.get_logger().info("target angle: {}".format(self.target_angle))
+            else:
+                self.back_arm_flag = False
+                self.ros_util.publish_actions("stop", 0, -1, 0, 0)
+                self.ros_util.publish_actions("stop", 0, 0, 0, 0)
+            
     def send_status(self, request, response):
         """Send the rover's battery and pose to the swarm controller."""
         self.get_logger().info("SENDING GetRoverStatus() with send_status function")
@@ -189,8 +235,12 @@ class RoverController(Node):
             )
 
             # Set rover to autonomously navigate to target
-            feedback, preempted = auto_drive_location(
-                self.world_state, self.ros_util, self, self.waypoint_server)
+            set_front_arm_angle(self.world_state, self.ros_util, 1.3)
+            set_back_arm_angle(self.world_state, self.ros_util, 1.3)
+            
+            feedback = Waypoint.Feedback()
+            preempted = False
+            # feedback, preempted = auto_drive_location(self.world_state, self.ros_util, self, self.waypoint_server)
             
             goal.publish_feedback(feedback)
 
@@ -199,7 +249,7 @@ class RoverController(Node):
             if (
                 feedback is not None
                 and not preempted
-                and not self.waypoint_server.is_preempt_requested()
+                # and not self.waypoint_server.is_preempt_requested()
             ):
                 result = Waypoint.Result(feedback.pose, feedback.battery, 0) #waypointResult(feedback.pose, feedback.battery, 0)
                 
@@ -314,7 +364,7 @@ def on_start_up(
     obstacle_threshold=4.0,
     obstacle_buffer=1.5,
     move_increment=3.0,
-    max_linear_velocity=10.0,
+    max_linear_velocity=1.0,
     max_angular_velocity=10.0,
     real_odometry=False,
     swarm_control=False,
@@ -345,10 +395,15 @@ def on_start_up(
     thread = threading.Thread(target=rclpy.spin, args=(rover_controller, ), daemon=True)
     thread.start()
 
-    rover_controller.rate = rover_controller.create_rate(45)
+    rover_controller.rate = rover_controller.create_rate(10)
 
-    #rclpy.spin(rover_controller)
-    if not swarm_control:
+    # rclpy.spin(rover_controller)
+    if True or swarm_control:
         rover_controller.autonomous_control_loop(rover_controller.world_state, rover_controller.ros_util)
+        #rover_controller.swarm_setup()
+        # while rclpy.ok():
+        #     #rover_controller.rate.sleep()
+        #     pass
+
     rclpy.shutdown()
     thread.join()

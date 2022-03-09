@@ -99,7 +99,6 @@ best move towards the goal. Aim to minimize the difference between our facing
 angle and the angle to the goal while avoiding unsafe moves.
 """
 
-
 def get_best_angle(world_state, buffer, scan, threshold):
     best_score = None
     best_angle = None

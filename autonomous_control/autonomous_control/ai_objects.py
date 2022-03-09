@@ -87,6 +87,9 @@ class WorldState:
         self.positionX = data.pose[index].position.x
         self.positionY = data.pose[index].position.y
 
+        # Display the positionX and positionY of the robot
+        #self.node.get_logger().info("Robot Position Update: ({},{})".format(self.positionX, self.positionY))
+
         heading = quaternion_to_yaw(data.pose[index]) * 180 / math.pi
 
         if heading > 0:

@@ -20,80 +20,14 @@ def on_scan_update(new_scan):
     scan = new_scan
 
 def set_front_arm_angle(world_state, ros_util, target_angle):
-    if target_angle > world_state.front_arm_angle:
-        while target_angle > world_state.front_arm_angle:
-            ros_util.publish_actions("stop", 1, 0, 0, 0)
-            ros_util.node.rate.sleep()
-        d = Bool()
-        d.data = True
-        ros_util.arms_up_pub.publish(d)
-    else:
-        while target_angle < world_state.front_arm_angle:
-            ros_util.publish_actions("stop", -1, 0, 0, 0)
-            ros_util.node.rate.sleep()
-        d = Bool()
-        d.data = False
-        ros_util.arms_up_pub.publish(d)
-    
-    ros_util.publish_actions("stop", 0, 0, 0, 0)
+    ros_util.node.target_angle = target_angle
+    ros_util.node.front_arm_flag = True
 
-
-# def set_front_arm_angle(world_state, ros_util, target_angle):
-#     """ Set front arm to absolute angle target_angle in radians. """
-#     # display target angle and current angle:
-#     if target_angle > world_state.front_arm_angle:
-#         world_state.node.get_logger().info("Current front arm angle: {}".format(world_state.front_arm_angle))
-#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
-#         ros_util.publish_actions("stop", 1, 0, 0, 0)
-#         time.sleep(0.5)
-#         ros_util.publish_actions("stop", 0, 0, 0, 0)
-#         world_state.node.get_logger().info("Current front arm angle: {}".format(world_state.front_arm_angle))
-#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
-#     else:
-#         world_state.node.get_logger().info("Current front arm angle: {}".format(world_state.front_arm_angle))
-#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
-#         ros_util.publish_actions("stop", -1, 0, 0, 0)
-#         time.sleep(0.5)
-#         ros_util.publish_actions("stop", 0, 0, 0, 0)
-#         world_state.node.get_logger().info("Current front arm angle: {}".format(world_state.front_arm_angle))
-#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
-    
-
-# def set_back_arm_angle(world_state, ros_util, target_angle):
-
-#     if target_angle > world_state.back_arm_angle:
-#         world_state.node.get_logger().info("Current back arm angle: {}".format(world_state.back_arm_angle))
-#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
-#         ros_util.publish_actions("stop", 0, 1, 0, 0)
-#         time.sleep(0.5)
-#         ros_util.publish_actions("stop", 0, 0, 0, 0)
-#         world_state.node.get_logger().info("Current back arm angle: {}".format(world_state.back_arm_angle))
-#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
-#     else:
-#         world_state.node.get_logger().info("Current back arm angle: {}".format(world_state.back_arm_angle))
-#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
-#         ros_util.publish_actions("stop", 0, -1, 0, 0)
-#         time.sleep(0.5)
-#         ros_util.publish_actions("stop", 0, 0, 0, 0)
-#         world_state.node.get_logger().info("Current back arm angle: {}".format(world_state.back_arm_angle))
-#         world_state.node.get_logger().info("target angle: {}".format(target_angle))
 
 def set_back_arm_angle(world_state, ros_util, target_angle):
-    """ Set back arm to absolute angle target_angle in radians. """
-    """rospy.loginfo('Setting back arm angle to %s radian%s...',
-                  str(target_angle),
-                  "" if target_angle == 1 else "s")"""
-
-    if target_angle > world_state.back_arm_angle:
-        while target_angle > world_state.back_arm_angle:
-            ros_util.publish_actions("stop", 0, 1, 0, 0)
-            ros_util.node.rate.sleep()
-    else:
-        while target_angle < world_state.back_arm_angle:
-            ros_util.publish_actions("stop", 0, -1, 0, 0)
-            ros_util.node.rate.sleep()
-
-    ros_util.publish_actions("stop", 0, 0, 0, 0)
+    # Triggers timer function to raise arms
+    ros_util.node.target_angle = target_angle
+    ros_util.node.back_arm_flag = True
 
 
 def self_check(world_state, ros_util):
@@ -227,6 +161,11 @@ def move(dist, world_state, ros_util, direction="forward"):
 
         if direction == "backward":
             move_velocity *= -1
+        
+        # Publishing the movement message with velocity move_velocity
+
+        # display move_velocity
+        world_state.node.get_logger().info("move_velocity: {}".format(move_velocity))
 
         twist_message = Twist()
         twist_message.linear.x = move_velocity
