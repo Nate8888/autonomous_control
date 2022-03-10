@@ -158,6 +158,7 @@ def move(dist, world_state, ros_util, direction="forward"):
 
         # Cap our minimum velocity at 1/10 our max velocity.
         move_velocity = max(move_velocity, ros_util.max_linear_velocity / 10)
+        move_velocity = min(move_velocity, 0.5) # Caps velocity to 0.5 to avoid hitting objects
 
         if direction == "backward":
             move_velocity *= -1

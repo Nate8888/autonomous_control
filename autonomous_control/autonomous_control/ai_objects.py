@@ -169,6 +169,7 @@ class ROSUtility:
         self, movement, front_arm, back_arm, front_drum, back_drum
     ):
         """ Publishes actions for all joints and motors """
+        # ros_util.publish_actions(direction, 0, 0, 1, 1)
 
         twist_message = Twist()
 

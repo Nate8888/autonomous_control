@@ -339,7 +339,7 @@ class RoverController(Node):
 #   <arg name="max_angular_velocity" default="1.0"/>
 #   <arg name="enable_real_odometry" default="false"/>
 #   <arg name="swarm_control" default="false"/>
-#   <arg name="obstacle_threshold" default="4.0"/>
+#   <arg name="obstacle_threshold" default="3.0"/>
 #   <arg name="obstacle_buffer" default="1.5"/>
 #   <arg name="move_increment" default="3.0"/>
 #   <arg name="max_obstacle_angle" default="45.0"/>
@@ -352,8 +352,8 @@ class RoverController(Node):
 #   <arg name="front_drum_instructions_topic"/>
 #   <arg name="back_drum_instructions_topic"/>
 def on_start_up(
-    target_x=6,
-    target_y=6,
+    target_x=10,
+    target_y=10,
     start_x=0,
     start_y=0,
     movement_topic="ezrassor/wheel_instructions",
@@ -361,8 +361,8 @@ def on_start_up(
     back_arm_topic="ezrassor/back_arm_instructions",
     front_drum_topic="ezrassor/front_drum_instructions",
     back_drum_topic="ezrassor/back_drum_instructions",
-    obstacle_threshold=4.0,
-    obstacle_buffer=1.5,
+    obstacle_threshold=3.0,
+    obstacle_buffer=2.0,
     move_increment=3.0,
     max_linear_velocity=1.0,
     max_angular_velocity=10.0,

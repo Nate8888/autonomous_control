@@ -166,6 +166,7 @@ def auto_dig(world_state, ros_util, duration, node, waypoint_server=None):
     if waypoint_server is None:
         node.get_logger().info("Auto-digging for {} seconds...".format(duration))
 
+    # @TODO: Set arms down for digging 
     set_front_arm_angle(world_state, ros_util, -0.04)
     set_back_arm_angle(world_state, ros_util, -0.04)
 
