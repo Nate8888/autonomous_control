@@ -23,7 +23,8 @@ setup(
             'obstacle_detection = autonomous_control.obstacle_detection:main',
             'autonomous_control = autonomous_control.autonomous_control:on_start_up',
             'interactor = autonomous_control.simulation_interact:main',
-            'camera_demo = autonomous_control.camera_image:main'
+            'camera_demo = autonomous_control.camera_image:main',
+            'waypoint_bridge = autonomous_control.waypoint_bridge:main',
         ],
     },
 )

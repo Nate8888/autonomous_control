@@ -97,14 +97,17 @@ class RoverController(Node):
         self.autonomous = self.create_subscription(Int8, "autonomous_toggles", self.ros_util.autoCommandCallBack, 10)
         
         # @TODO FIX on_scan method
-        self.combined = self.create_subscription(LaserScan, "obstacle_detection/combined", on_scan_update, 1)
+        self.combined = self.create_subscription(LaserScan, f"/{self.ROBOT_NAME}/obstacle_detection/combined", on_scan_update, 1)
 
         # Fix infinite arm issue
         self.front_arm_timer = self.create_timer(0.1, self.front_arm_timer_cb)
         self.back_arm_timer = self.create_timer(0.1, self.back_arm_timer_cb)
 
+        if swarm_control:
+            # Create subscriber that receives a target Point
+            self.swarm_target_sub = self.create_subscription(Point, "swarm_target", self.swarmTargetCallBack, 10)
         
-        if self.swarm_control: # if True to test swarm
+        if False: # if True to test swarm
             self.ros_util.auto_function_command = 16
 
             self.server_name = "waypoint"
@@ -137,6 +140,23 @@ class RoverController(Node):
 
             self.world_state.target_location = target_location
             self.world_state.dig_site = temp
+    
+    def swarmTargetCallBack(self, msg):
+        target_location = Point()
+        temp = Point()
+
+        target_location.x = float(msg.x)
+        target_location.y = float(msg.y)
+
+        temp.x = float(msg.x)
+        temp.y = float(msg.y)
+
+        self.world_state.target_location = target_location
+        self.world_state.dig_site = temp
+        self.get_logger().info("Goal Changed to {} {}".format(msg.x, msg.y))
+        self.ros_util.auto_function_command = 1
+
+
 
     def front_arm_timer_cb(self):
         """
@@ -367,7 +387,7 @@ def on_start_up(
     max_linear_velocity=1.0,
     max_angular_velocity=10.0,
     real_odometry=False,
-    swarm_control=False,
+    swarm_control=True,
     args=None
 ):
     """ Initialization Function  """
