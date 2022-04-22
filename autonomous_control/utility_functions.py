@@ -8,23 +8,54 @@ from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Pose
 
 from .nav_functions import *
-
-# @TODO: Find what exactly is this. We don't have those msgs
-#from ezrassor_swarm_control.msg import waypointFeedback, waypointResult
 from action_interfaces.action import Waypoint
 
 scan = None
 
 def on_scan_update(new_scan):
+    """ Update the global scan variable
+    
+    Inputs:
+    ======
+    new_scan: The new scan data
+
+    Outputs:
+    ======
+    None
+    """
     global scan
     scan = new_scan
 
 def set_front_arm_angle(world_state, ros_util, target_angle):
+    """ Triggers timer function to raise front arms
+    
+    Inputs:
+    ======
+    world_state: The current world state
+    ros_util: The ROS utility functions
+    target_angle: The angle to raise the front arm to
+
+    Outputs:
+    ======
+    None
+    """
     ros_util.node.target_angle = target_angle
     ros_util.node.front_arm_flag = True
 
 
 def set_back_arm_angle(world_state, ros_util, target_angle):
+    """ Triggers timer function to raise back arms
+
+    Inputs:
+    ======
+    world_state: The current world state
+    ros_util: The ROS utility functions
+    target_angle: The angle to raise the back arm to
+
+    Outputs:
+    ======
+    None
+    """
     # Triggers timer function to raise arms
     ros_util.node.target_angle = target_angle
     ros_util.node.back_arm_flag = True
@@ -33,6 +64,15 @@ def set_back_arm_angle(world_state, ros_util, target_angle):
 def self_check(world_state, ros_util):
     """Check for unfavorable states in the system
     and handle or quit gracefully.
+
+    Inputs:
+    ======
+    world_state: The current world state
+    ros_util: The ROS utility functions
+
+    Outputs:
+    ======
+    int: -1 if autonomous control should quit, 3 if low battery, 1 if ok
     """
     if (
         ros_util.auto_function_command == 32
@@ -63,15 +103,25 @@ def self_check(world_state, ros_util):
     return 1
 
 
-""" Turns the robot to the given heading
-
-Given a heading and a direction to turn to, this function turns the robot from
-our current heading to the new heading. A ramping function (using the sine
-function from 0 to pi) is used.
-"""
-
 
 def turn(new_heading, direction, world_state, ros_util):
+    """ Turns the robot to the given heading
+
+    Given a heading and a direction to turn to, this function turns the robot from
+    our current heading to the new heading. A ramping function (using the sine
+    function from 0 to pi) is used.
+
+    Inputs:
+    ======
+    new_heading: The heading to turn to
+    direction: The direction to turn (left or right)
+    world_state: The current world state
+    ros_util: The ROS utility functions
+
+    Outputs:
+    ======
+    None
+    """
     # Calculate how many degrees that we need to turn.
     angle_dist = abs((new_heading - world_state.heading + 180) % 360 - 180)
     angle_traveled = 0
@@ -109,15 +159,26 @@ def turn(new_heading, direction, world_state, ros_util):
             (world_state.heading - old_heading + 180) % 360 - 180
         )
 
-""" Moves the robot a given distance or until an obstacle is encountered
-
-Given a distance and a direction to move towards, this function moves the robot
-until it has moved that distance or it encounters an obstacle. A ramping
-function (using the sine function from 0 to pi) is used.
-"""
 
 
 def move(dist, world_state, ros_util, direction="forward"):
+    """ Moves the robot a given distance or until an obstacle is encountered
+
+    Given a distance and a direction to move towards, this function moves the robot
+    until it has moved that distance or it encounters an obstacle. A ramping
+    function (using the sine function from 0 to pi) is used.
+
+    Inputs:
+    ======
+    dist: The distance to move
+    world_state: The current world state
+    ros_util: The ROS utility functions
+    direction: The direction to move (forward or backward)
+
+    Outputs:
+    ======
+    None
+    """
     # Get current distance from EZ-RASSOR to our current best target location.
     old_x = world_state.positionX
     old_y = world_state.positionY
@@ -181,7 +242,17 @@ def move(dist, world_state, ros_util, direction="forward"):
 
 
 def reverse_turn(world_state, ros_util):
-    """ Reverse until object no longer detected and turn left """
+    """ Reverse until object no longer detected and turn left
+    
+    Inputs:
+    ======
+    world_state: The current world state
+    ros_util: The ROS utility functions
+
+    Outputs:
+    ======
+    None
+    """
 
     while world_state.warning_flag == 3:
         ros_util.publish_actions("reverse", 0, 0, 0, 0)
@@ -194,6 +265,17 @@ def reverse_turn(world_state, ros_util):
 
 
 def dodge_left(world_state, ros_util):
+    """Dodge left until object no longer detected
+    
+    Inputs:
+    ======
+    world_state: The current world state
+    ros_util: The ROS utility functions
+
+    Outputs:
+    ======
+    None
+    """
     start_x = world_state.positionX
     start_y = world_state.positionY
 
@@ -216,6 +298,17 @@ def dodge_left(world_state, ros_util):
 
 
 def dodge_right(world_state, ros_util):
+    """Dodge right until object no longer detected
+    
+    Inputs:
+    ======
+    world_state: The current world state
+    ros_util: The ROS utility functions
+
+    Outputs:
+    ======
+    None
+    """
     start_x = world_state.positionX
     start_y = world_state.positionY
 
@@ -238,7 +331,17 @@ def dodge_right(world_state, ros_util):
 
 
 def self_right_from_side(world_state, ros_util):
-    """ Flip EZ-RASSOR over from its side. """
+    """ Flip EZ-RASSOR over from its side.
+    
+    Inputs:
+    ======
+    world_state: The current world state
+    ros_util: The ROS utility functions
+
+    Outputs:
+    ======
+    None
+    """
 
     world_state.node.get_logger().info("Starting auto self-right...")
     while world_state.on_side is not False:
@@ -248,15 +351,23 @@ def self_right_from_side(world_state, ros_util):
     ros_util.publish_actions("stop", 0, 0, 0, 0)
 
 
-""" Returns the best direction to go towards to get to the goal
-
-This function returns the direction the robot should move towards. If no safe
-angle is found, the WedgeBug algorithm is used to look for a safe angle in an
-adjacent view. Return once a safe angle is found.
-"""
-
 
 def get_turn_angle(world_state, ros_util):
+    """ Returns the best direction to go towards to get to the goal
+
+    This function returns the direction the robot should move towards. If no safe
+    angle is found, the WedgeBug algorithm is used to look for a safe angle in an
+    adjacent view. Return once a safe angle is found.
+
+    Inputs:
+    ======
+    world_state: The current world state
+    ros_util: The ROS utility functions
+
+    Outputs:
+    ======
+    None
+    """
     # Iterate over all of the laser beams in our current scan and determine the
     # best angle to turn towards.
     best_angle = get_best_angle(
@@ -379,6 +490,15 @@ def send_feedback(world_state, waypoint_server):
     """
     Send feedback (rover current pose) from a rover's action server back to the
     action client
+
+    Inputs:
+    ======
+    world_state: The current world state
+    waypoint_server: The waypoint action server
+
+    Outputs:
+    ======
+    feedback: The feedback message to be sent back to the action client
     """
 
     if waypoint_server is None:
@@ -399,6 +519,17 @@ def send_feedback(world_state, waypoint_server):
 
 
 def build_result(world_state, preempted):
+    """Builds the result message to be sent back to the action client
+    
+    Inputs:
+    ======
+    world_state: The current world state
+    preempted: Whether or not the action was preempted
+
+    Outputs:
+    ======
+    result: The result message to be sent back to the action client
+    """
     result = Waypoint.Result()
 
     result.pose.position.x = float(world_state.positionX)

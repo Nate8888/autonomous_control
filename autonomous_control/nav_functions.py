@@ -5,11 +5,33 @@ import tf_transformations
 
 
 def euclidean_distance(x1, x2, y1, y2):
-    """ Calculate Euclidean distance from (x1,y1) to (x2,y2). """
+    """ Calculate Euclidean distance from (x1,y1) to (x2,y2).
+    
+    Inputs:
+    ======
+    x1: the x position of the rover
+    x2: the x position of the target
+    y1: the y position of the rover
+    y2: the y position of the target
+
+    Outputs:
+    ======
+    distance: the distance between the two points
+    """
     return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
 
 def calculate_heading(world_state):
+    """ Calculate the heading of the robot.
+    
+    Inputs:
+    ======
+    world_state: the current state of the world
+
+    Outputs:
+    ======
+    new_heading: the new heading of the robot
+    """
     # Calculate the new heading of the robot given its current location and the
     # target location.
     y2 = world_state.target_location.y
@@ -36,14 +58,33 @@ def calculate_heading(world_state):
 
 
 def adjust_angle(heading, new_heading):
-    # Adjust the angle difference to determine fastest turning direction to
-    # reach the goal.
+    """ Adjust the angle difference to determine fastest turning direction to reach goal.
+    
+    Inputs:
+    ======
+    heading: the current heading of the robot
+    new_heading: the new heading of the robot
+
+    Outputs:
+    ======
+    adjusted_heading: the adjusted heading of the robot
+    """
     angle_difference = new_heading - heading
     angle_difference = (angle_difference + 180) % 360 - 180
     return math.pi * angle_difference / 180
 
 
 def quaternion_to_yaw(pose):
+    """ Convert a quaternion to a yaw angle.
+
+    Inputs:
+    ======
+    pose: the pose of the robot
+
+    Outputs:
+    ======
+    yaw: the yaw of the robot using tf_transformations
+    """
     quaternion = (
         pose.orientation.x,
         pose.orientation.y,
@@ -54,15 +95,29 @@ def quaternion_to_yaw(pose):
     return euler[2]
 
 
-""" Returns whether a given angle is safe for the robot to go towards.
 
-Check if EZ-RASSOR can fit through a space given the angle to turn towards it.
-Angle is in radians and dist is the distance to an object or threshold value
-passed in.
-"""
 
 
 def angle_is_safe(angle, dist, buffer, scan, threshold):
+    """ Returns whether a given angle is safe for the robot to go towards.
+
+    Check if EZ-RASSOR can fit through a space given the angle to turn towards it.
+    Angle is in radians and dist is the distance to an object or threshold value
+    passed in.
+    
+    Inputs:
+    ======
+    angle: the angle to check
+    dist: the distance to the object
+    buffer: the buffer to check
+    scan: the scan data
+    threshold: the threshold value
+
+    Outputs:
+    ======
+    is_safe: whether the angle is safe or not
+    """
+
     # Calculate how much to change angle in order for robot to clear obstacle.
     buffer_angle = math.atan(buffer / threshold)
 
@@ -92,14 +147,25 @@ def angle_is_safe(angle, dist, buffer, scan, threshold):
     return True
 
 
-""" Returns the best angle to go towards in the given LaserScan
+
+def get_best_angle(world_state, buffer, scan, threshold):
+    """ Returns the best angle to go towards in the given LaserScan
 
 Iterate through the laser scan in our current view (wedge) and determine our
 best move towards the goal. Aim to minimize the difference between our facing
 angle and the angle to the goal while avoiding unsafe moves.
-"""
 
-def get_best_angle(world_state, buffer, scan, threshold):
+    Inputs:
+    ======
+    world_state: the current state of the world
+    buffer: the buffer to check
+    scan: the scan data
+    threshold: the threshold value
+
+    Outputs:
+    ======
+    best_angle: the best angle to go towards
+    """
     best_score = None
     best_angle = None
 
@@ -125,15 +191,25 @@ def get_best_angle(world_state, buffer, scan, threshold):
     return best_angle
 
 
-""" Converts the given relative angle to an absolute angle
 
-Given an angle in degrees relative to the robot's current facing angle, this
-function returns its absolute heading in degrees (same heading that the Gazebo
-world uses).
-"""
 
 
 def rel_to_abs(current_heading_degrees, relative_heading_radians):
+    """ Converts the given relative angle to an absolute angle
+
+    Given an angle in degrees relative to the robot's current facing angle, this
+    function returns its absolute heading in degrees (same heading that the Gazebo
+    world uses).
+
+    Inputs:
+    ======
+    current_heading_degrees: the current heading of the robot
+    relative_heading_radians: the relative angle to convert
+
+    Outputs:
+    ======
+    absolute_heading_degrees: the absolute angle to convert
+    """
     # Convert from radians to degrees
     relative_heading_degrees = 180 * relative_heading_radians / math.pi
 

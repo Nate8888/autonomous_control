@@ -5,6 +5,8 @@ from sensor_msgs.msg import PointCloud2, CameraInfo, Image
 import time
 
 class CameraImage(Node):
+    """ CameraImage class that subscribes to images from the rover's camera and publishes them to the frame_img topic.
+    """
     def __init__(self):
 
         self.current_frame = None
@@ -22,14 +24,30 @@ class CameraImage(Node):
 
 
     def on_pic_received(self, img):
-        '''
+        """
         Updates current image frame without hz limit
-        '''
+
+        Inputs:
+        ======
+        img: Image message from rover's camera
+
+        Outputs:
+        =======
+        None
+        """
         self.current_frame = img
 
     def send_image(self):
         '''
         Sends current image frame capped at 1 frame per second
+
+        Inputs:
+        ======
+        None
+
+        Outputs:
+        =======
+        None
         '''
         if self.current_frame is not None:
             self.image_publisher.publish(self.current_frame)

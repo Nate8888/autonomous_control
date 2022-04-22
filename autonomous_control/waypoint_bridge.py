@@ -24,22 +24,30 @@ class FibonacciActionServer(Node):
         )
     
     def execute_action(self, goal_handle):
-        '''
+        """
         Action Server handling:
+
+        Inputs:
+        ======
+        goal_handle: GoalHandle for the action server
         
-        Goal:
-          - geometry_msgs/Point target
+            Goal:
+            - geometry_msgs/Point target
 
-        Result:
-          - geometry_msgs/Pose pose
-          - int8 battery
-          - int8 preempted
+            Result:
+            - geometry_msgs/Pose pose
+            - int8 battery
+            - int8 preempted
 
-        Feedback:
+            Feedback:
 
-        geometry_msgs/Pose pose
-        int8 battery
-        '''
+            geometry_msgs/Pose pose
+            int8 battery
+
+        Outputs:
+        =======
+        result: Result of the action
+        """
         
         self.get_logger().info('Executing goal...')
         self.get_logger().info('Bridge is sending Target to EZ-RASSOR...')

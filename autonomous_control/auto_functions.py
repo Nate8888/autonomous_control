@@ -4,8 +4,20 @@ from .nav_functions import *
 import time
 
 def at_target(positionX, positionY, targetX, targetY, threshold):
-    """Determine if the current position is within
+    """ Determine if the current position is within
     the desired threshold of the target position.
+
+    Inputs:
+    ======
+    positionX: Current X position of the rover
+    positionY: Current Y position of the rover
+    targetX: Target X position of the rover
+    targetY: Target Y position of the rover
+    threshold: Threshold distance to determine if rover is at target
+
+    Outputs:
+    =======
+    value: Boolean value indicating if rover is at target
     """
     value = (targetX - threshold) < positionX < (targetX + threshold) and (
         targetY - threshold
@@ -15,7 +27,17 @@ def at_target(positionX, positionY, targetX, targetY, threshold):
 
 
 def charge_battery(world_state, ros_util):
-    """ Charge the rover's battery for a designated duration until battery is 100% """
+    """ Charge the rover's battery for a designated duration until battery is 100%
+    
+    Inputs:
+    ======
+    world_state: WorldState object containing all the information about the rover
+    ros_util: ROSUtil object containing all the ROS utility functions
+
+    Outputs:
+    =======
+    world_state.battery: Updated battery level
+    """
 
     ros_util.publish_actions("stop", 0, 0, 0, 0)
 
@@ -27,7 +49,20 @@ def charge_battery(world_state, ros_util):
 
 
 def auto_drive_location(world_state, ros_util, node, waypoint_server=None):
-    """ Navigate to location. Avoid obstacles while moving toward location. """
+    """ Navigate to location. Avoid obstacles while moving toward location.
+    
+    Inputs:
+    ======
+    world_state: WorldState object containing all the information about the rover
+    ros_util: ROSUtil object containing all the ROS utility functions
+    node: Node object containing all the ROS node utility functions
+    waypoint_server: WaypointServer object containing all the waypoint server utility functions
+
+    Outputs:
+    =======
+    feedback: Feedback object containing all the information about the rover's current location
+    preempted: Boolean value indicating if the waypoint server was preempted
+    """
 
     # Action server will print it's own info
     if waypoint_server is None:
@@ -148,6 +183,19 @@ def auto_dig(world_state, ros_util, duration, node, waypoint_server=None):
     """
     Rotate both drums inward and dig
     for duration time in seconds.
+
+    Inputs:
+    ======
+    world_state: WorldState object containing all the information about the rover
+    ros_util: ROSUtil object containing all the ROS utility functions
+    duration: Duration of digging in seconds
+    node: Node object containing all the ROS node utility functions
+    waypoint_server: WaypointServer object containing all the waypoint server utility functions
+
+    Outputs:
+    =======
+    feedback: Feedback object containing all the information about the rover's current location
+    preempted: Boolean value indicating if the waypoint server was preempted
     """
 
     feedback = send_feedback(world_state, waypoint_server)
@@ -205,7 +253,18 @@ def auto_dig(world_state, ros_util, duration, node, waypoint_server=None):
 
 
 def auto_dock(world_state, ros_util, node):
-    """ Dock with the hopper. """
+    """ Goes back to origin (auto-docks).
+    
+    Inputs:
+    ======
+    world_state: WorldState object containing all the information about the rover
+    ros_util: ROSUtil object containing all the ROS utility functions
+    node: Node object for the autonomous control
+
+    Outputs:
+    =======
+    -
+    """
 
     node.get_logger().info("Auto-returning to origin...")
 
@@ -227,6 +286,16 @@ def auto_dock(world_state, ros_util, node):
 def auto_dump(world_state, ros_util, duration, node):
     """Rotate both drums inward and drive forward
     for duration time in seconds.
+
+    Inputs:
+    ======
+    world_state: WorldState object containing all the information about the rover
+    ros_util: ROSUtil object containing all the ROS utility functions
+    duration: Duration of dumping in seconds
+
+    Outputs:
+    =======
+    -
     """
     node.get_logger().info("Auto-dumping drum contents...")
 

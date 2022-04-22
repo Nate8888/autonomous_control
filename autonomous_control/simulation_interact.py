@@ -37,6 +37,9 @@ class SimulationRoutine(Node):
             self.PUBLISHERS[each_robot]['drum_f'] = self.create_publisher(Float64MultiArray, "{}/drum_front_velocity_controller/commands".format(each_robot), 10)
             self.PUBLISHERS[each_robot]['drum_b'] = self.create_publisher(Float64MultiArray, "{}/drum_back_velocity_controller/commands".format(each_robot), 10)
 
+        self.arm_routine()
+
+
     def on_interaction(self, int32msg):
         mode = int32msg.data
         if mode == 0:

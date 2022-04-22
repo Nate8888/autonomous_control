@@ -9,9 +9,22 @@ import numpy as np
 import image_geometry
 
 def angle_between_rays(ray1, ray2):
+    """ Finds the angle between laser rays
+
+    Inputs:
+    ======
+    ray1: the first laser ray
+    ray2: the second laser ray
+
+    Outputs:
+    =======
+    angle: the angle between the two rays
+    """
     return np.arccos(np.clip(np.dot(ray1, ray2), -1.0, 1.0))
 
 class ObstacleDetector(Node):
+    """ ObstacleDetector class that inherits from Node in order to produce a ROS2 usable node
+    """
     XYZ = {"RIGHT": 0, "DOWN": 1, "FORWARD": 2}
 
     def __init__(
@@ -22,6 +35,22 @@ class ObstacleDetector(Node):
         scan_time,
         range_min,
         range_max):
+
+        """ Initialize the ObstacleDetector class
+
+        Inputs:
+        ======
+        max_angle: the maximum angle to look for obstacles
+        max_obstacle_dist: the maximum distance to look for obstacles
+        min_hole_diameter: the minimum diameter of a hole to be considered an obstacle
+        scan_time: the time between scans
+        range_min: the minimum range of the laser
+        range_max: the maximum range of the laser
+
+        Outputs:
+        =======
+        None
+        """
 
         self.max_slope = np.tan(max_angle * np.pi / 180.0)
         self.max_obstacle_dist = max_obstacle_dist
@@ -34,44 +63,35 @@ class ObstacleDetector(Node):
         self.get_logger().info('Created node')
         self.point_cloud = None
 
-        # Publisher nodes w/ depth camera data
-        # /ezrassor/depth_camera/camera_info
-        # /ezrassor/depth_camera/depth/camera_info
-        # /ezrassor/depth_camera/depth/image_raw
-        # /ezrassor/depth_camera/image_raw
-        # /ezrassor/depth_camera/points
 
-
-        camera_info_topic = "ezrassor/depth_camera/camera_info" #"camera/depth/camera_info"
-        # Create the subscribers
+        camera_info_topic = "ezrassor/depth_camera/camera_info"
         self.camera_info_sub = self.create_subscription(CameraInfo, camera_info_topic, self.init_pc_info, 10)
         self.get_logger().info('Created camera_info_sub')
         self.camera_info_sub
         self.get_logger().info('Awaiting {}'.format(camera_info_topic))
 
 
-        point_cloud_topic= "ezrassor/depth_camera/points" #"camera/depth/points"
+        point_cloud_topic= "ezrassor/depth_camera/points"
         self.pt_sub = self.create_subscription(PointCloud2, point_cloud_topic, self.on_pc_update, 10)
         self.get_logger().info('Created PointCloud2 subs')
         self.pt_sub
 
-        # Testing sub
-        # self.strsub = self.create_subscription(String,'topic',self.listener_callback,10)
-        # self.get_logger().info('Created str sub')
-        # self.strsub
-        
-        # Create the publishers
         self.hike_pub = self.create_publisher(LaserScan, "/obstacle_detection/hike", 10)
         self.slope_pub = self.create_publisher(LaserScan, "/obstacle_detection/slope", 10)
         self.combined_pub = self.create_publisher(LaserScan, "/obstacle_detection/combined", 10)
-
-    def listener_callback(self, msg):
-        self.get_logger().info("I heard {} {}".format(msg.data, str(self.get_clock().now().to_msg().sec)))
     
     def init_pc_info(self, camera_info):
+        """ Initialize the camera info for the point cloud
+
+        Inputs:
+        ======
+        camera_info: the camera info message
+
+        Outputs:
+        ======
+        None
+        """
         self.get_logger().info('I received camera_info data')
-        #self.get_logger().info(camera_info)
-        # Initialize camera
         cam_model = image_geometry.PinholeCameraModel()
         cam_model.fromCameraInfo(camera_info)
         width = camera_info.width
@@ -112,6 +132,17 @@ class ObstacleDetector(Node):
 
 
     def on_pc_update(self, pc):
+        """ Callback function for the point cloud
+
+        Inputs:
+        ======
+        pc: the point cloud message
+
+        Outputs:
+        ======
+        None
+
+        """
         self.point_cloud = pc
         self.get_logger().info('I received pc data')
         self.point_cloud_to_laser_scan()
@@ -125,6 +156,14 @@ class ObstacleDetector(Node):
         closest obstacle in each direction. Slope is used to detect
         above-ground (positive) obstacles and hike is used to detect holes
         (negative obstacles).
+
+        Inputs:
+        ======
+        self.point_cloud: The pointCloud2 message to be converted to a LaserScan
+
+        Outputs:
+        ======
+        None
         """
         #self.get_logger().info('Range size: {}'.format(self.ranges_size))
         # Initial LaserScans assume infinite travel in every direction
@@ -199,6 +238,18 @@ class ObstacleDetector(Node):
             self.combined_pub.publish(self.create_laser_scan(min_ranges)) 
 
     def to_laser_scan_data(self, forward, right):
+        """Convert the point cloud to laser scan data.
+
+        Inputs:
+        ======
+        forward: The forward direction of the point cloud
+        right: The right direction of the point cloud
+
+        Outputs:
+        ======
+        steps: The steps in the laser scan
+        dists: The distances in the laser scan
+        """
         # Multiply angles by -1 to get counterclockwise (right to left) ordering
         angles = np.negative(np.arctan2(right, forward))
         # Group angles to discrete indices in laserscan array
@@ -210,6 +261,17 @@ class ObstacleDetector(Node):
         return steps, dists
     
     def get_points(self):
+        """ Get the points from the point cloud buffer
+
+        Inputs:
+        ======
+        None
+
+        Outputs:
+        ======
+        points: The point cloud points formatted as a numpy array
+
+        """
         if self.point_cloud is None:
             return None
 
@@ -222,7 +284,16 @@ class ObstacleDetector(Node):
         return points if points.size > 0 else None
     
     def create_laser_scan(self, ranges):
-        """Return a LaserScan based on the given ranges list."""
+        """Return a LaserScan based on the given ranges list.
+        
+        Inputs:
+        ======
+        ranges: The ranges to be converted to a LaserScan
+
+        Outputs:
+        ======
+        scan: The LaserScan message
+        """
         scan = LaserScan()
         scan.header.frame_id = self.frame_id
         # Get the current time stamp for the LaserScan message

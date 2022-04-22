@@ -30,8 +30,8 @@ from .utility_functions import *
 
 
 class RoverController(Node):
+    """RoverController class that inherits from Node class in order to create an autonomous control node"""
 
-    ROBOT_NAME = "ezrassor" # Default name used
 
     def __init__(
         self,
@@ -50,10 +50,34 @@ class RoverController(Node):
         max_linear_velocity,
         max_angular_velocity,
         real_odometry,
-        swarm_control
+        swarm_control,
+        name
     ):
+        """
+        Initialize the rover controller class.
+
+        Inputs:
+        ======
+        target_x: The x coordinate of the target location.
+        target_y: The y coordinate of the target location.
+        start_x: The x coordinate of the start location.
+        start_y: The y coordinate of the start location.
+        movement_topic: The topic to publish to for movement commands.
+        front_arm_topic: The topic to publish to for the front arm.
+        back_arm_topic: The topic to publish to for the back arm.
+        front_drum_topic: The topic to publish to for the front drum.
+        back_drum_topic: The topic to publish to for the back drum.
+        obstacle_threshold: The distance threshold for an obstacle.
+        obstacle_buffer: The distance buffer for an obstacle.
+        move_increment: The distance increment for the rover to move.
+        max_linear_velocity: The maximum linear velocity of the rover.
+        max_angular_velocity: The maximum angular velocity of the rover.
+        real_odometry: Boolean value that determines if the real odometry is used.
+        swarm_control: Boolean value that determines if the swarm control is used.
+        name: The name of the rover
+        """
         super().__init__("autonomous_control")
-        #self.get_logger().info('Created node')
+        self.ROBOT_NAME = name # Default name used
 
         self.rate = self.create_rate(10, self.get_clock())
         self.namespace = self.get_namespace()
@@ -90,43 +114,41 @@ class RoverController(Node):
         else:
             self.gazebolink = self.create_subscription(LinkStates, "gazebo/link_states", self.world_state.simStateCallBack, 10)
 
-        # imu = good
-        self.imu = self.create_subscription(Imu, "{}/imu_plugin/out".format(self.ROBOT_NAME), self.world_state.imuCallBack, 10)
-        # joint_state = good
-        self.joint_state = self.create_subscription(JointState, "{}/joint_states".format(self.ROBOT_NAME), self.world_state.jointCallBack, 10)
-        self.autonomous = self.create_subscription(Int8, "autonomous_toggles", self.ros_util.autoCommandCallBack, 10)
+        self.change_targets = self.create_subscription(Point, "{}/change_target".format(self.ROBOT_NAME), self.change_target, 10)
         
-        # @TODO FIX on_scan method
+        
+        self.imu = self.create_subscription(Imu, "{}/imu_plugin/out".format(self.ROBOT_NAME), self.world_state.imuCallBack, 10)
+        self.joint_state = self.create_subscription(JointState, "{}/joint_states".format(self.ROBOT_NAME), self.world_state.jointCallBack, 10)
+        self.autonomous = self.create_subscription(Int8, "{}/autonomous_toggles".format(self.ROBOT_NAME), self.ros_util.autoCommandCallBack, 10)
+        
         self.combined = self.create_subscription(LaserScan, f"/{self.ROBOT_NAME}/obstacle_detection/combined", on_scan_update, 1)
 
-        # Fix infinite arm issue
         self.front_arm_timer = self.create_timer(0.1, self.front_arm_timer_cb)
         self.back_arm_timer = self.create_timer(0.1, self.back_arm_timer_cb)
 
         if swarm_control:
-            # Create subscriber that receives a target Point
             self.swarm_target_sub = self.create_subscription(Point, "swarm_target", self.swarmTargetCallBack, 10)
         
-        if False: # if True to test swarm
-            self.ros_util.auto_function_command = 16
+        # if False: # if True to test swarm
+        #     self.ros_util.auto_function_command = 16
 
-            self.server_name = "waypoint"
-            self.waypoint_server = ActionServer(
-                self,
-                Waypoint,
-                'waypoint',
-                self.execute_action
-            )
+        #     self.server_name = "waypoint"
+        #     self.waypoint_server = ActionServer(
+        #         self,
+        #         Waypoint,
+        #         'waypoint',
+        #         self.execute_action
+        #     )
 
-            #self.waypoint_server.register_preempt_callback(self.preempt_cb)
-            self.get_logger().info("Rover waypoint server initialized.")
+        #     #self.waypoint_server.register_preempt_callback(self.preempt_cb)
+        #     self.get_logger().info("Rover waypoint server initialized.")
 
-            # Register GetRoverStatus, used by the swarm controller to retrieve
-            # a rover's position and battery
-            self.status_service = self.create_service(
-                GetRoverStatus, "rover_status", self.send_status
-            )
-            self.get_logger().info("Rover status service initialized.")
+        #     # Register GetRoverStatus, used by the swarm controller to retrieve
+        #     # a rover's position and battery
+        #     self.status_service = self.create_service(
+        #         GetRoverStatus, "rover_status", self.send_status
+        #     )
+        #     self.get_logger().info("Rover status service initialized.")
         else:
             # Basic autonomous control using the autonomous control loop
             target_location = Point()
@@ -141,7 +163,43 @@ class RoverController(Node):
             self.world_state.target_location = target_location
             self.world_state.dig_site = temp
     
+    def change_target(self, msg):
+        """ Changes the target location of the rover
+
+        Inputs:
+        ======
+        msg: The Point message containing the new target location.
+
+        Outputs:
+        =======
+        -
+        """
+
+        target_location = Point()
+        temp = Point()
+
+        target_location.x = float(msg.x)
+        target_location.y = float(msg.y)
+
+        temp.x = float(msg.x)
+        temp.y = float(msg.y)
+
+        self.world_state.target_location = target_location
+        self.world_state.dig_site = temp
+        self.get_logger().info("Goal Changed to {} {}".format(msg.x, msg.y))
+
+    
     def swarmTargetCallBack(self, msg):
+        """ Changes the target location of the rover to the swarm target and triggers the autonomous control loop
+
+        Inputs:
+        ======
+        msg: The Point message containing the new target location.
+
+        Outputs:
+        =======
+        -
+        """
         target_location = Point()
         temp = Point()
 
@@ -160,7 +218,16 @@ class RoverController(Node):
 
     def front_arm_timer_cb(self):
         """
-        Callback for the front arm timer.
+        Timer function for the front arm. It raises the arm when flag is raised.
+
+        Inputs:
+        ======
+        -
+
+        Outputs:
+        =======
+        -
+
         """
         if self.front_arm_flag:
             if self.target_angle > self.world_state.front_arm_angle:
@@ -182,7 +249,15 @@ class RoverController(Node):
 
     def back_arm_timer_cb(self):
         """
-        Callback for the Back arm timer.
+        Timer function for the back arm. It raises back arm when flag is raised.
+
+        Inputs:
+        ======
+        -
+
+        Outputs:
+        =======
+        -
         """
         if self.back_arm_flag:
             if self.target_angle > self.world_state.back_arm_angle:
@@ -195,7 +270,17 @@ class RoverController(Node):
                 self.ros_util.publish_actions("stop", 0, 0, 0, 0)
             
     def send_status(self, request, response):
-        """Send the rover's battery and pose to the swarm controller."""
+        """Send the rover's battery and pose to the swarm controller.
+        
+        Inputs:
+        ======
+        request: The GetRoverStatus request message.
+        response: The GetRoverStatus response message.
+
+        Outputs:
+        =======
+        response: The populated GetRoverStatus response message.
+        """
         self.get_logger().info("SENDING GetRoverStatus() with send_status function")
         response.pose.position.x = float(self.world_state.positionX)
         response.pose.position.y = float(self.world_state.positionY)
@@ -204,7 +289,7 @@ class RoverController(Node):
         return response
 
     def execute_action(self, goal):
-        """Handle a swarm controller action."""
+        """Handle a swarm controller action (depracated)."""
 
         self.get_logger().info("Received action goal.")
 
@@ -278,7 +363,7 @@ class RoverController(Node):
                 return result
 
     def preempt_cb(self):
-        """Handle preempt request from swarm controller."""
+        """Handle preempt request from swarm controller. (depracated)"""
         if self.waypoint_server.is_preempt_requested():
             # Stop the rover
             self.ros_util.publish_actions("stop", 0, 0, 0, 0)
@@ -291,7 +376,17 @@ class RoverController(Node):
             self.waypoint_server.set_preempted(result)
 
     def full_autonomy(self, world_state, ros_util):
-        """ Full Autonomy Loop Function """
+        """ Full Autonomy Loop Function
+        
+        Inputs:
+        ======
+        world_state: The current world state.
+        ros_util: The ROS utility object.
+
+        Outputs:
+        =======
+        -
+        """
 
         self.get_logger().info("Full autonomy activated.")
 
@@ -313,7 +408,17 @@ class RoverController(Node):
         world_state.target_location.y = world_state.dig_site.y
 
     def autonomous_control_loop(self, world_state, ros_util):
-        """ Control Auto Functions based on auto_function_command input. """
+        """ Control Auto Functions based on auto_function_command input.
+        
+        Inputs:
+        ======
+        world_state: The current world state.
+        ros_util: The ROS utility object.
+
+        Outputs:
+        =======
+        -
+        """
 
         while True:
             while (
@@ -351,46 +456,53 @@ class RoverController(Node):
             ros_util.control_pub.publish(d)
 
 
-#   <arg name="digsite_x_coord" default="10"/>
-#   <arg name="digsite_y_coord" default="10"/>
-#   <arg name="spawn_x_coord" default="0"/>
-#   <arg name="spawn_y_coord" default="0"/>
-#   <arg name="max_linear_velocity" default="1.0"/>
-#   <arg name="max_angular_velocity" default="1.0"/>
-#   <arg name="enable_real_odometry" default="false"/>
-#   <arg name="swarm_control" default="false"/>
-#   <arg name="obstacle_threshold" default="3.0"/>
-#   <arg name="obstacle_buffer" default="1.5"/>
-#   <arg name="move_increment" default="3.0"/>
-#   <arg name="max_obstacle_angle" default="45.0"/>
-#   <arg name="min_hole_diameter" default="3.0"/>
-#   <arg name="enable_park_ranger" default="false"/>
-#   <arg name="world" default="default"/>
-#   <arg name="wheel_instructions_topic"/>
-#   <arg name="front_arm_instructions_topic"/>
-#   <arg name="back_arm_instructions_topic"/>
-#   <arg name="front_drum_instructions_topic"/>
-#   <arg name="back_drum_instructions_topic"/>
 def on_start_up(
     target_x=10,
     target_y=10,
     start_x=0,
     start_y=0,
-    movement_topic="ezrassor/wheel_instructions",
-    front_arm_topic="ezrassor/front_arm_instructions",
-    back_arm_topic="ezrassor/back_arm_instructions",
-    front_drum_topic="ezrassor/front_drum_instructions",
-    back_drum_topic="ezrassor/back_drum_instructions",
+    movement_topic="/wheel_instructions",
+    front_arm_topic="/front_arm_instructions",
+    back_arm_topic="/back_arm_instructions",
+    front_drum_topic="/front_drum_instructions",
+    back_drum_topic="/back_drum_instructions",
     obstacle_threshold=3.0,
     obstacle_buffer=2.0,
     move_increment=3.0,
     max_linear_velocity=1.0,
     max_angular_velocity=10.0,
     real_odometry=False,
-    swarm_control=True,
+    swarm_control=False,
+    name="ezrassor",
     args=None
 ):
-    """ Initialization Function  """
+    """ Initialization Function
+    
+    Inputs:
+    ======
+    target_x: The x coordinate of the target location.
+    target_y: The y coordinate of the target location.
+    start_x: The x coordinate of the start location.
+    start_y: The y coordinate of the start location.
+    movement_topic: The topic to publish movement commands to.
+    front_arm_topic: The topic to publish front arm commands to.
+    back_arm_topic: The topic to publish back arm commands to.
+    front_drum_topic: The topic to publish front drum commands to.
+    back_drum_topic: The topic to publish back drum commands to.
+    obstacle_threshold: The distance threshold for an obstacle to be considered
+    obstacle_buffer: The distance buffer for an obstacle to be considered
+    move_increment: The distance increment for each move command
+    max_linear_velocity: The maximum linear velocity of the rover
+    max_angular_velocity: The maximum angular velocity of the rover
+    real_odometry: Whether to use real odometry or simulated odometry
+    swarm_control: Whether to use swarm control or autonomous control
+    name: The name of the rover
+    args: The arguments passed to the function
+
+    Outputs:
+    =======
+    -
+    """
     rclpy.init(args=args)
 
     rover_controller = RoverController(
@@ -398,32 +510,26 @@ def on_start_up(
         target_y,
         start_x,
         start_y,
-        movement_topic,
-        front_arm_topic,
-        back_arm_topic,
-        front_drum_topic,
-        back_drum_topic,
+        name + movement_topic,
+        name + front_arm_topic,
+        name + back_arm_topic,
+        name + front_drum_topic,
+        name + back_drum_topic,
         obstacle_threshold,
         obstacle_buffer,
         move_increment,
         max_linear_velocity,
         max_angular_velocity,
         real_odometry,
-        swarm_control
+        swarm_control,
+        name
     )
 
     thread = threading.Thread(target=rclpy.spin, args=(rover_controller, ), daemon=True)
     thread.start()
-
     rover_controller.rate = rover_controller.create_rate(10)
+    rover_controller.autonomous_control_loop(rover_controller.world_state, rover_controller.ros_util)
 
-    # rclpy.spin(rover_controller)
-    if True or swarm_control:
-        rover_controller.autonomous_control_loop(rover_controller.world_state, rover_controller.ros_util)
-        #rover_controller.swarm_setup()
-        # while rclpy.ok():
-        #     #rover_controller.rate.sleep()
-        #     pass
 
     rclpy.shutdown()
     thread.join()

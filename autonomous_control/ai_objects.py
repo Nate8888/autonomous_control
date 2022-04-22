@@ -34,7 +34,17 @@ class WorldState:
         self.node = node
 
     def jointCallBack(self, data):
-        """ Set state_flags joint position data. """
+        """ Finds the angle of the front and back arm.
+
+        Inputs
+        ======
+        data: The joint state message -> JointState(metaclass=Metaclass_JointState)
+
+        Outputs
+        =======
+        self.front_arm_angle: The angle of the front arm
+        self.back_arm_angle: The angle of the back arm
+        """
         
         # Find the index of 'arm_front_joint'
         index_farm = data.name.index("arm_front_joint")
@@ -46,7 +56,16 @@ class WorldState:
         # self.node.get_logger().info("back arm angle: {}".format(self.back_arm_angle))
 
     def odometryCallBack(self, data):
-        """ Set state_flags world position data. """
+        """ Finds which way we need to turn to face the target goal
+
+        Inputs
+        ======
+        data: The odometry message -> Odometry(metaclass=Metaclass_Odometry)
+        
+        Outputs
+        =======
+        self.heading: The heading of the robot
+        """
 
         self.positionX = data.pose.pose.position.x + self.startPositionX
         self.positionY = data.pose.pose.position.y + self.startPositionY
@@ -59,8 +78,18 @@ class WorldState:
             self.heading = 360 + heading
 
     def simStateCallBack(self, data):
-        """More accurate position data to use for
-        testing and experimentation.
+        """ Callback function that updates the current position of the rover in the simulation.
+        This is the function that depends on the gazebo simulation
+
+        Inputs
+        ======
+        data: The LinkStates message -> LinkStates(metaclass=Metaclass_LinkStates)
+        
+        Outputs
+        =======
+        self.positionX: The x position of the rover in the simulation
+        self.positionY: The y position of the rover in the simulation
+        self.heading: The heading of the robot
         """
         index = 0
 
@@ -77,7 +106,7 @@ class WorldState:
         #self.node.get_logger().info('Trying to get the namespace inside simState: {}'.format(namespace))
 
         namespace = namespace[1:-1] + "::base_link"
-        default_ns = "ezrassor::base_link"
+        default_ns = "{}::base_link".format(self.node.ROBOT_NAME)
         try:
             index = data.name.index(default_ns)
         except Exception:
@@ -98,14 +127,33 @@ class WorldState:
             self.heading = 360 + heading
 
     def imuCallBack(self, data):
-        " Heading data collected from orientation IMU data. "
+        """ Callback function that receives imu data from the rover and updates rover status.
 
+        Inputs
+        ======
+        data: The Imu message -> Imu(metaclass=Metaclass_Imu)
+        
+        Outputs
+        =======
+        self.on_side: True if the rover is in the side position
+        """
         if abs(data.linear_acceleration.y) > 9:
             self.on_side = True
         else:
             self.on_side = False
 
     def get_arm_force(self):
+        """ Get the force of the front and back arm.
+
+        Inputs
+        ======
+        -
+        
+        Outputs
+        =======
+        front_arm_force: The force of the front arm
+        back_arm_force: The force of the back arm
+        """
         front_arm_force = (
             self.state_flags["front_arm_angle"] + 0.2 + uniform(-0.2, 0.2)
         )
@@ -116,6 +164,18 @@ class WorldState:
 
     # Use initial spawn coordinates to later offset position
     def initial_spawn(self, start_x, start_y):
+        """ Set the initial spawn coordinates of the rover.
+
+        Inputs
+        ======
+        start_x: The x position of the rover
+        start_y: The y position of the rover
+        
+        Outputs
+        =======
+        self.startPositionX: The x position of the rover
+        self.startPositionY: The y position of the rover
+        """
         self.startPositionX = start_x
         self.startPositionY = start_y
 
@@ -139,7 +199,38 @@ class ROSUtility:
         move_increment,
         node
     ):
-        """ Initialize the ROS Utility Object. """
+        """ Initialize the ROS utility class.
+
+        Inputs
+        ======
+        movement_topic: The topic to publish movement commands to
+        front_arm_topic: The topic to publish front arm commands to
+        back_arm_topic: The topic to publish back arm commands to
+        front_drum_topic: The topic to publish front drum commands to
+        back_drum_topic: The topic to publish back drum commands to
+        max_linear_velocity: The maximum linear velocity of the rover
+        max_angular_velocity: The maximum angular velocity of the rover
+        obstacle_threshold: The threshold for obstacle detection
+        obstacle_buffer: The buffer for obstacle detection
+        move_increment: The increment for movement commands
+        node: The node to use for ROS
+        
+        Outputs
+        =======
+        self.node: The node to use for ROS
+        self.movement_pub: The movement publisher
+        self.front_arm_pub: The front arm publisher
+        self.back_arm_pub: The back arm publisher
+        self.front_drum_pub: The front drum publisher
+        self.back_drum_pub: The back drum publisher
+        self.control_pub: The control publisher
+        self.arms_up_pub: The arms up publisher
+        self.max_linear_velocity: The maximum linear velocity of the rover
+        self.max_angular_velocity: The maximum angular velocity of the rover
+        self.obstacle_threshold: The threshold for obstacle detection
+        self.obstacle_buffer: The buffer for obstacle detection
+        self.move_increment: The increment for movement commands
+        """
         self.node = node
         self.movement_pub = self.node.create_publisher(Twist, movement_topic, 10)
         self.front_arm_pub = self.node.create_publisher(Float64, front_arm_topic, 10)
@@ -147,8 +238,8 @@ class ROSUtility:
         self.front_drum_pub = self.node.create_publisher(Float64, front_drum_topic, 10)
         self.back_drum_pub = self.node.create_publisher(Float64, back_drum_topic, 10)
         # @TODO check if it's secondary_override_toggle or /secondary_override_toggle
-        self.control_pub = self.node.create_publisher(Bool, "secondary_override_toggle", 10)
-        self.arms_up_pub = self.node.create_publisher(Bool, "arms_up", 10)
+        self.control_pub = self.node.create_publisher(Bool, "{}/secondary_override_toggle".format(self.node.ROBOT_NAME), 10)
+        self.arms_up_pub = self.node.create_publisher(Bool, "{}/arms_up".format(self.node.ROBOT_NAME), 10)
         
         # Setting up a hz rate?
         # https://answers.ros.org/question/358343/rate-and-sleep-function-in-rclpy-library-for-ros2/
@@ -168,8 +259,21 @@ class ROSUtility:
     def publish_actions(
         self, movement, front_arm, back_arm, front_drum, back_drum
     ):
-        """ Publishes actions for all joints and motors """
-        # ros_util.publish_actions(direction, 0, 0, 1, 1)
+        """ Publishes actions for all joints and motors 
+        
+        Inputs
+        ======
+        movement: The movement command to publish
+        front_arm: The front arm command to publish
+        back_arm: The back arm command to publish
+        front_drum: The front drum command to publish
+        back_drum: The back drum command to publish
+
+        Outputs
+        =======
+        -
+        
+        """
 
         twist_message = Twist()
 
@@ -200,7 +304,17 @@ class ROSUtility:
         self.back_drum_pub.publish(back_drum_float)
 
     def autoCommandCallBack(self, data):
-        """ Set auto_function_command to the current choice. """
+        """ Callback function that receives auto function commands.
+        
+        Inputs
+        ======
+        data: The Int8 message to process
+
+        Outputs
+        =======
+        self.auto_function_command: The auto function command
+        
+        """
         # get_logger message with new data
         self.node.get_logger().info('Received auto command: {}'.format(data.data))
         self.auto_function_command = data.data
