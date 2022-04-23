@@ -11,7 +11,7 @@ from action_interfaces.action import Waypoint
 from msgsrc_interfaces.srv import GetRoverStatus
 from msgsrc_interfaces.msg import Path
 
-class FibonacciActionServer(Node):
+class WaypointBridgeActionServer(Node):
 
     def __init__(self):
         super().__init__('waypoint_bridge')
@@ -93,9 +93,9 @@ class FibonacciActionServer(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    fibonacci_action_server = FibonacciActionServer()
+    waypoint_action_server = WaypointBridgeActionServer()
 
-    rclpy.spin(fibonacci_action_server)
+    rclpy.spin(waypoint_action_server)
 
 
 if __name__ == '__main__':

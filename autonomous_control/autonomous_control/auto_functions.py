@@ -212,10 +212,8 @@ def auto_dig(world_state, ros_util, duration, node, waypoint_server=None):
     if waypoint_server is None:
         node.get_logger().info("Auto-digging for {} seconds...".format(duration))
 
-    # @TODO: Set arms down for digging 
-    # set_front_arm_angle(world_state, ros_util, -0.04)
-    # set_back_arm_angle(world_state, ros_util, -0.04)
-
+    ros_util.publish_actions("stop", -1, -1, 0, 0)
+    time.sleep(3)
     # Dig for the desired duration
     t = 0
     direction = "forward"
@@ -224,7 +222,7 @@ def auto_dig(world_state, ros_util, duration, node, waypoint_server=None):
         if t % 100 == 0:
             direction = "reverse" if direction == "forward" else "forward"
         node.get_logger().info("Publishing d, 0, 0, 1, 1 with i={}".format(t))
-        ros_util.publish_actions(direction, 0, 0, 1, 1)
+        ros_util.publish_actions("stop", 0, 0, 1, 1)
 
         t += 1
         ros_util.node.rate.sleep()

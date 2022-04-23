@@ -59,6 +59,8 @@ def set_back_arm_angle(world_state, ros_util, target_angle):
     # Triggers timer function to raise arms
     ros_util.node.target_angle = target_angle
     ros_util.node.back_arm_flag = True
+    
+
 
 
 def self_check(world_state, ros_util):

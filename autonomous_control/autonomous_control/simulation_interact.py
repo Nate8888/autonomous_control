@@ -4,15 +4,16 @@ import rclpy
 from rclpy.node import Node
 
 # import float64 multiarray
+from geometry_msgs.msg import Twist
 from std_msgs.msg import Float64MultiArray, Int32, Float64
 import time
 
 class SimulationRoutine(Node):
     DEFAULT_ROBOT_ALONE = "ezrassor"
-    ROBOT_NAMES = ["ezrassor", "ezrassor_2", "ezrassor_3", "ezrassor_4"]
+    ROBOT_NAMES = ["ezrassor", "ezrassor2"]
     PUBLISHERS = {}
-    TIME_DELAY = 2
-    ARM_SPEED = 0.5
+    TIME_DELAY = 3
+    ARM_SPEED = 1.25
 
     def __init__(self):
 
@@ -28,6 +29,10 @@ class SimulationRoutine(Node):
         self.arm_vel = self.create_subscription(Float64, "/change_arm_velocity", self.change_arm_vel, 10)
         self.get_logger().info('Created arm_vel subs')
 
+        self.swarm = False
+        self.alternate = 0
+        self.go = False
+
         # Set up publishers for each robot
         for each_robot in self.ROBOT_NAMES:
             if not each_robot in self.PUBLISHERS:
@@ -36,8 +41,37 @@ class SimulationRoutine(Node):
             self.PUBLISHERS[each_robot]['arm_b'] = self.create_publisher(Float64MultiArray, "{}/arm_back_velocity_controller/commands".format(each_robot), 10)
             self.PUBLISHERS[each_robot]['drum_f'] = self.create_publisher(Float64MultiArray, "{}/drum_front_velocity_controller/commands".format(each_robot), 10)
             self.PUBLISHERS[each_robot]['drum_b'] = self.create_publisher(Float64MultiArray, "{}/drum_back_velocity_controller/commands".format(each_robot), 10)
+        
+        # Left it out of the loop for .timer function. It's hard to perform movements without a timer function.
+        self.PUBLISHERS["ezrassor"]['wheels'] = self.create_publisher(Twist, "{}/wheel_instructions".format("ezrassor"), 10)
+        self.PUBLISHERS["ezrassor2"]['wheels'] = self.create_publisher(Twist, "{}/wheel_instructions".format("ezrassor2"), 10)
 
-        self.arm_routine()
+        # Create timers self.PUBLISHERS["ezrassor"]['wheels'], self.PUBLISHERS["ezrassor2"]['wheels']
+        self.wheels_timer1 = self.create_timer(0.1, self.wheels_timer_callback1)
+
+        #self.arm_routine()
+    
+    def wheels_timer_callback1(self):
+        # Create a Twist message and fill it with a linear x and y speed
+        if self.go:
+            twist_msg = Twist()
+
+            twist_msg.linear.x = float(1.0)
+            twist_msg.angular.z = float(0.0)
+
+            if self.swarm:
+                if self.alternate > 50:
+                    twist_msg.angular.z = float(-10.0)
+                    self.PUBLISHERS["ezrassor"]['wheels'].publish(twist_msg)
+                    twist_msg.angular.z = float(10.0)
+                    self.PUBLISHERS["ezrassor2"]['wheels'].publish(twist_msg)
+                else:
+                    twist_msg.angular.z = float(0.0)
+                    self.PUBLISHERS["ezrassor"]['wheels'].publish(twist_msg)
+                    self.PUBLISHERS["ezrassor2"]['wheels'].publish(twist_msg)
+            else:
+                self.PUBLISHERS["ezrassor"]['wheels'].publish(twist_msg)
+            self.alternate += 1
 
 
     def on_interaction(self, int32msg):
@@ -46,7 +80,27 @@ class SimulationRoutine(Node):
             self.get_logger().info('Interaction mode is off')
             return
         elif mode == 1:
+            # Calibration Dance
             self.arm_routine()
+        elif mode == 2:
+            # Raise front arm and back arm for obstacle detection demo
+            self.raise_both_arms()
+            time.sleep(self.TIME_DELAY)
+            self.stop_both_arms()
+        elif mode == 3:
+            # Swarm mode
+            self.get_logger().info('Swarm mode is on')
+            self.swarm = True
+
+            # Will execute these with a swarm function
+            self.raise_both_arms()
+            time.sleep(self.TIME_DELAY)
+            self.stop_both_arms()
+
+            # Triggers movement using timer function
+            self.go = True
+
+
     
     def change_time(self, float64msg):
         self.TIME_DELAY = float64msg.data
@@ -121,13 +175,33 @@ class SimulationRoutine(Node):
         self.PUBLISHERS[self.DEFAULT_ROBOT_ALONE]['arm_b'].publish(arm_b_msg)
 
     def raise_both_arms(self):
-        self.get_logger().info('Raising arms for {}'.format(self.DEFAULT_ROBOT_ALONE))
-        arm_f_msg = Float64MultiArray()
-        arm_f_msg.data = [self.ARM_SPEED]
-        arm_b_msg = Float64MultiArray()
-        arm_b_msg.data = [self.ARM_SPEED]
-        self.PUBLISHERS[self.DEFAULT_ROBOT_ALONE]['arm_f'].publish(arm_f_msg)
-        self.PUBLISHERS[self.DEFAULT_ROBOT_ALONE]['arm_b'].publish(arm_b_msg)
+        if self.swarm:
+            # We want them to execute at the same time so we save it and then execute it after
+            queue = []
+            for each_rover in self.ROBOT_NAMES:
+                self.get_logger().info('Raising arms for {}'.format(each_rover))
+                arm_f_msg = Float64MultiArray()
+                arm_f_msg.data = [self.ARM_SPEED]
+                arm_b_msg = Float64MultiArray()
+                arm_b_msg.data = [self.ARM_SPEED]
+                temp = []
+                temp.append(arm_f_msg)
+                temp.append(arm_b_msg)
+                queue.append(temp)
+
+            qi = 0
+            for each_rover in self.ROBOT_NAMES:
+                self.PUBLISHERS[each_rover]['arm_f'].publish(queue[qi][0])
+                self.PUBLISHERS[each_rover]['arm_b'].publish(queue[qi][1])
+                qi += 1
+        else:
+            self.get_logger().info('Raising arms for {}'.format(self.DEFAULT_ROBOT_ALONE))
+            arm_f_msg = Float64MultiArray()
+            arm_f_msg.data = [self.ARM_SPEED]
+            arm_b_msg = Float64MultiArray()
+            arm_b_msg.data = [self.ARM_SPEED]
+            self.PUBLISHERS[self.DEFAULT_ROBOT_ALONE]['arm_f'].publish(arm_f_msg)
+            self.PUBLISHERS[self.DEFAULT_ROBOT_ALONE]['arm_b'].publish(arm_b_msg)
     
     def lower_both_arms(self):
         self.get_logger().info('Lowering arms for {}'.format(self.DEFAULT_ROBOT_ALONE))
@@ -146,6 +220,9 @@ class SimulationRoutine(Node):
         arm_b_msg.data = [0.0]
         self.PUBLISHERS[self.DEFAULT_ROBOT_ALONE]['arm_f'].publish(arm_f_msg)
         self.PUBLISHERS[self.DEFAULT_ROBOT_ALONE]['arm_b'].publish(arm_b_msg)
+
+        self.PUBLISHERS["ezrassor2"]['arm_f'].publish(arm_f_msg)
+        self.PUBLISHERS["ezrassor2"]['arm_b'].publish(arm_b_msg)
     
 def main(args=None):
     rclpy.init(args=args)

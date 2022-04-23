@@ -7,17 +7,9 @@ from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 from gazebo_msgs.msg import LinkStates
 import threading
-# LinkStates:
-
-# broadcast all link states in world frame
-# string[] name                 # link names
-# geometry_msgs/Pose[] pose     # desired pose in world frame
-# geometry_msgs/Twist[] twist   # desired twist in world frame
-
 from sensor_msgs.msg import JointState, Imu, LaserScan
 import sys
 
-# Check if the action library is necessary
 from rclpy.action import ActionServer
 from action_interfaces.action import Waypoint
 
@@ -394,7 +386,7 @@ class RoverController(Node):
             auto_drive_location(world_state, ros_util, self)
             if ros_util.auto_function_command != 16:
                 break
-            auto_dig(world_state, ros_util, 7, self)
+            auto_dig(world_state, ros_util, 2, self)
             if ros_util.auto_function_command != 16:
                 break
             auto_dock(world_state, ros_util, self)
