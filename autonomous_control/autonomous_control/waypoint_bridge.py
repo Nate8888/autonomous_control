@@ -15,6 +15,9 @@ class WaypointBridgeActionServer(Node):
 
     def __init__(self):
         super().__init__('waypoint_bridge')
+        self.status_sub = self.create_subscription(Int8, 'ezrassor/mode', self.mode_callback, 10)
+        self.mode = 0
+        self.rate = self.create_rate(10, self.get_clock())
         self.server_name = "waypoint"
         self.waypoint_server = ActionServer(
             self,
@@ -22,6 +25,12 @@ class WaypointBridgeActionServer(Node):
             'waypoint',
             self.execute_action
         )
+        self.get_logger().info('Waypoint Bridge Action Server Ready!')
+        # Create a subscriber to listen to topic ezrassor/mode Int8
+       
+    
+    def mode_callback(self, msg):
+        self.mode = msg.data
     
     def execute_action(self, goal_handle):
         """
@@ -48,19 +57,15 @@ class WaypointBridgeActionServer(Node):
         =======
         result: Result of the action
         """
-        entire_path = goal_handle.request.path.path
-        for path in entire_path:
-            self.get_logger().info("Executing path: {},{},{}".format(path.x, path.y, path.z))
-        
+        the_path = Path()
+        the_path.path = goal_handle.request.path.path
+        it = 0
+        self.target_pub = self.create_publisher(Path, 'swarm_target', 10)
         self.get_logger().info('Executing goal...')
-        self.get_logger().info('Bridge is sending Target to EZ-RASSOR...')
-        #self.get_logger().info('Target: x:{}, y:{}'.format(goal_handle.request.target.x, goal_handle.request.target.y))
+        self.get_logger().info('Bridge is sending Targets to EZ-RASSOR...')
 
-        # Create a publisher to send the target to topic /swarm_target
-        self.target_pub = self.create_publisher(Point, 'swarm_target', 10)
-        #self.target_pub.publish(goal_handle.request.target)
+        self.target_pub.publish(the_path)
         self.get_logger().info('Point Sent...')
-
         
         # Build Feedback_msg
         feedback_msg = Waypoint.Feedback()

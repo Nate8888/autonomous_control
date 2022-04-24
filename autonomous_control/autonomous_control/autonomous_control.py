@@ -74,7 +74,12 @@ class RoverController(Node):
         self.rate = self.create_rate(10, self.get_clock())
         self.namespace = self.get_namespace()
         self.get_logger().info('Created node w/ namespace: {}'.format(self.namespace))
-        self.swarm_control = swarm_control
+
+        self.declare_parameter('swarm', False)
+        self.swarm_control = self.get_parameter('swarm').get_parameter_value().bool_value
+
+        self.get_logger().info('Swarm control: {}'.format(self.swarm_control))
+        self.point_queue = []
 
         # Used to trigger timer function execution
         self.front_arm_flag = False
@@ -117,9 +122,15 @@ class RoverController(Node):
 
         self.front_arm_timer = self.create_timer(0.1, self.front_arm_timer_cb)
         self.back_arm_timer = self.create_timer(0.1, self.back_arm_timer_cb)
+        
+        # Create a publisher that displays the current mode (self.ros_util.auto_function_command)
+        self.mode_pub = self.create_publisher(Int8, "{}/mode".format(self.ROBOT_NAME), 10)
+        self.mdode_pub_timer = self.create_timer(1, self.mode_pub_cb)
 
-        if swarm_control:
-            self.swarm_target_sub = self.create_subscription(Point, "swarm_target", self.swarmTargetCallBack, 10)
+
+        if self.swarm_control:
+            self.get_logger().info('Swarm control enabled! Listening to path topic...')
+            self.swarm_target_sub = self.create_subscription(Path, "swarm_target", self.swarmTargetCallBack, 10)
         
         # if False: # if True to test swarm
         #     self.ros_util.auto_function_command = 16
@@ -155,6 +166,25 @@ class RoverController(Node):
             self.world_state.target_location = target_location
             self.world_state.dig_site = temp
     
+    def mode_pub_cb(self):
+        int8 = Int8()
+        int8.data = self.ros_util.auto_function_command
+        self.mode_pub.publish(int8)
+        if len(self.point_queue) > 0 and self.ros_util.auto_function_command == 0:
+            msg = self.point_queue.pop(0)
+            target_location = Point()
+            temp = Point()
+            target_location.x = float(msg.x)
+            target_location.y = float(msg.y)
+            temp.x = float(msg.x)
+            temp.y = float(msg.y)
+            self.world_state.target_location = target_location
+            self.world_state.dig_site = temp
+            self.get_logger().info("Goal Changed to {} {}".format(msg.x, msg.y))
+            self.ros_util.auto_function_command = 1
+
+            
+    
     def change_target(self, msg):
         """ Changes the target location of the rover
 
@@ -181,7 +211,7 @@ class RoverController(Node):
         self.get_logger().info("Goal Changed to {} {}".format(msg.x, msg.y))
 
     
-    def swarmTargetCallBack(self, msg):
+    def swarmTargetCallBack(self, data):
         """ Changes the target location of the rover to the swarm target and triggers the autonomous control loop
 
         Inputs:
@@ -192,6 +222,10 @@ class RoverController(Node):
         =======
         -
         """
+        self.point_queue = data.path
+
+        msg = self.point_queue.pop(0)
+
         target_location = Point()
         temp = Point()
 
