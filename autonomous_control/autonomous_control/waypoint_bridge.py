@@ -32,7 +32,7 @@ class WaypointBridgeActionServer(Node):
         goal_handle: GoalHandle for the action server
         
             Goal:
-            - geometry_msgs/Point target
+            - Path path: Path to follow
 
             Result:
             - geometry_msgs/Pose pose
@@ -48,14 +48,17 @@ class WaypointBridgeActionServer(Node):
         =======
         result: Result of the action
         """
+        entire_path = goal_handle.request.path.path
+        for path in entire_path:
+            self.get_logger().info("Executing path: {},{},{}".format(path.x, path.y, path.z))
         
         self.get_logger().info('Executing goal...')
         self.get_logger().info('Bridge is sending Target to EZ-RASSOR...')
-        self.get_logger().info('Target: x:{}, y:{}'.format(goal_handle.request.target.x, goal_handle.request.target.y))
+        #self.get_logger().info('Target: x:{}, y:{}'.format(goal_handle.request.target.x, goal_handle.request.target.y))
 
         # Create a publisher to send the target to topic /swarm_target
         self.target_pub = self.create_publisher(Point, 'swarm_target', 10)
-        self.target_pub.publish(goal_handle.request.target)
+        #self.target_pub.publish(goal_handle.request.target)
         self.get_logger().info('Point Sent...')
 
         
